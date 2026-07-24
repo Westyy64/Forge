@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <!-- FORGE — © 2026. All rights reserved. Personal training app. Not licensed for redistribution. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com data:; img-src 'self' data:; connect-src 'self' https://api.fitbit.com; form-action 'none'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'">
 <meta name="robots" content="noindex, nofollow, noarchive, noimageindex">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -654,7 +655,7 @@ function renderHome(){
   renderBigFour();
   // recent PRs
   const prs=[...DB.prs].reverse().slice(0,4);
-  $("home-prs").innerHTML=prs.length?prs.map(p=>{const ex=findEx(p.exId);return`<div class="pr-row"><div><div class="pr-ex">${ex?ex.name:p.exId}</div><div class="pr-date">${fmtDate(p.date)}</div></div><div class="pr-val">${p.val} ${p.type==="e1rm"?"kg e1RM":p.type}</div></div>`}).join(""):`<div class="empty">Log sets to start setting records.<br><br>Got a backup file? <b style="color:var(--volt)">More → Restore from backup</b></div>`;
+  $("home-prs").innerHTML=prs.length?prs.map(p=>{const ex=findEx(p.exId);return`<div class="pr-row"><div><div class="pr-ex">${esc(ex?ex.name:p.exId)}</div><div class="pr-date">${fmtDate(p.date)}</div></div><div class="pr-val">${p.val} ${p.type==="e1rm"?"kg e1RM":p.type}</div></div>`}).join(""):`<div class="empty">Log sets to start setting records.<br><br>Got a backup file? <b style="color:var(--volt)">More → Restore from backup</b></div>`;
 }
 function findEx(exId){for(const d of DAY_ORDER){const e=DAYS[d].exercises.find(x=>x.id===exId);if(e)return e}return null}
 
@@ -688,7 +689,7 @@ function renderDayList(){
   $("day-list").innerHTML=DAY_ORDER.map(id=>{
     const d=DAYS[id],ds=sessDates(id);
     const lastTxt=ds.length?`Last trained ${daysAgo(ds[ds.length-1])===0?"today":daysAgo(ds[ds.length-1])+"d ago"} · ${ds.length} sessions`:"Never trained — fresh start";
-    return`<div class="day-card" onclick="openWorkout('${id}')"><div><div class="day-kicker">${d.label}</div><div class="day-name">${d.short}</div><div class="day-meta">${d.sub}</div><div class="day-last">${lastTxt}</div></div><div class="day-arrow">›</div></div>`;
+    return`<div class="day-card" onclick="openWorkout('${id}')"><div><div class="day-kicker">${esc(d.label)}</div><div class="day-name">${d.short}</div><div class="day-meta">${d.sub}</div><div class="day-last">${lastTxt}</div></div><div class="day-arrow">›</div></div>`;
   }).join("");
 }
 
@@ -735,21 +736,21 @@ function buildWorkout(){
       const wUnit=ex.timed?"—":ex.carry?"kg":"kg", rUnit=ex.timed?"sec":ex.carry?"m":"reps";
       h+=`<div class="ex${doneAll?" done":""}" id="ex-${ex.id}">
         <div class="ex-hd" onclick="toggleEx('${ex.id}')">
-          <div style="flex:1"><div class="ex-name">${ex.name}</div>
+          <div class="row" style="flex:1;gap:10px;align-items:flex-start"><div style="flex:1;min-width:0"><div class="ex-name">${esc(ex.name)}</div>
             <div class="ex-meta"><span class="tag ${m.tag}">${m.l}</span><span class="pill">${ex.sets} × ${ex.reps}</span><span class="pill">${ex.muscle}</span>${ss?`<span class="tag ss-tag">SS·${ss.order}</span>`:""}</div>
             <div class="ex-equip">${ex.equip}</div>
             ${rec&&rec.note?`<div class="tiny mt8" style="color:var(--volt)">▸ ${rec.note}</div>`:""}
-          </div>
+          </div>${miniBody(ex.id,ex.muscle)}</div>
           <button class="ex-check" onclick="event.stopPropagation();toggleDone('${ex.id}')" aria-label="Mark complete">✓</button>
         </div>
         <div class="ex-body" id="body-${ex.id}">
-          <div class="ex-lastline"><span>${prevBest?`Last: <b>${prevBest.w?prevBest.w+" kg × ":""}${prevBest.r} ${rUnit}</b> (${fmtDate(lastDate)})`:"First time — set the baseline"}</span>${hist.length>1?sparkline(hist):""}</div>
+          <div class="ex-lastline"><span>${prevBest?`Last: <b>${prevBest.w?prevBest.w+" kg × ":""}${prevBest.r} ${rUnit}</b> (${fmtDate(lastDate)})`:"First time — set the baseline"}</span>${hist.length>1?`<span class="row" style="gap:5px;cursor:pointer" onclick="event.stopPropagation();sparkInfo()">${sparkline(hist)}<span class="pill" style="padding:1px 6px;font-size:9px;border-color:var(--volt-line);color:var(--volt)">i</span></span>`:""}</div>
           <div class="sets-hdr"><span>Set</span><span>${wUnit}</span><span>${rUnit}</span><span>Log</span></div>
           ${rows}
           <div class="ex-tools">
             ${ex.type==="compound"&&!ex.timed?`<button class="tool-btn" onclick="warmupSheet('${ex.id}')">⚡ Warm-up</button><button class="tool-btn" onclick="plateSheet('${ex.id}')">🏋 Plates</button>`:""}
             <button class="tool-btn" onclick="tipSheet('${ex.id}')">📖 Form</button>
-            ${prevBest?`<button class="tool-btn" onclick="autofill('${ex.id}')">↺ Repeat last</button>`:""}
+
           </div>
           <textarea class="ex-note" id="note-${ex.id}" rows="1" placeholder="Notes — pain, tempo, machine setting…" oninput="setNote('${ex.id}',this.value)">${esc((sess._notes||{})[ex.id]||"")}</textarea>
           <div class="pr-flash" id="pr-${ex.id}"></div>
@@ -829,7 +830,7 @@ function checkPR(exId,s){
   const bestE=Math.max(...hist.map(x=>x.e)),bestW=Math.max(...hist.map(x=>x.w));
   const nowE=e1rm(s.w,s.r);
   let msg=null;
-  if(s.w>bestW){msg=`🏆 Weight PR — ${s.w} kg on ${ex.name}!`;DB.prs.push({exId,type:"kg top set",val:s.w,date:WO.date})}
+  if(s.w>bestW){msg=`🏆 Weight PR — ${s.w} kg on ${esc(ex.name)}!`;DB.prs.push({exId,type:"kg top set",val:s.w,date:WO.date})}
   else if(nowE>bestE){msg=`🔥 e1RM PR — ${nowE} kg estimated max!`;DB.prs.push({exId,type:"e1rm",val:nowE,date:WO.date})}
   if(msg){save();const el=$("pr-"+exId);el.textContent=msg;el.style.display="block";confetti();haptic([30,50,30]);toast(msg,true);
     const g=LIFT_GOALS[exId];if(g&&nowE>=g.target)setTimeout(()=>toast(`⚡ GOAL SMASHED: ${g.label}`,true),1500)}
@@ -1054,7 +1055,7 @@ hollow:{alt:"hollow body hold",scene:SC.floor,hi:"core",dur:3.6,
 };
 D.hang3=D.hang;
 const DEMOS={};Object.keys(D).forEach(k=>{Object.defineProperty(DEMOS,k,{get:()=>buildDemo(D[k]),enumerable:true})});
-function tipSheet(exId){const ex=findEx(exId);openSheet(`<div class="sheet-title">${ex.name}</div>${DEMOS[exId]?`<div class="mb12">${DEMOS[exId]}</div>`:""}<div class="subtle" style="line-height:1.7;font-size:13.5px">${TIPS[exId]||ex.equip}</div><div class="tiny mt12">${ex.equip}</div><button class="btn btn-full mt16" onclick="closeSheet()">Got it</button>`)}
+function tipSheet(exId){const ex=findEx(exId);openSheet(`<div class="sheet-title">${esc(ex.name)}</div>${DEMOS[exId]?`<div class="mb12">${DEMOS[exId]}</div>`:""}<div class="subtle" style="line-height:1.7;font-size:13.5px">${TIPS[exId]||ex.equip}</div><div class="tiny mt12">${ex.equip}</div><button class="btn btn-full mt16" onclick="closeSheet()">Got it</button>`)}
 function warmupSheet(exId){
   const ex=findEx(exId),hist=exHistory(exId),rec=recommend(ex,hist);
   const target=rec&&rec.w?rec.w:(hist.length?hist[hist.length-1].w:40);
@@ -1178,7 +1179,7 @@ function renderProgress(){
   // exercise selector
   const sel=$("prog-ex-sel");
   if(!sel.options.length){
-    DAY_ORDER.forEach(dayId=>{DAYS[dayId].exercises.forEach(ex=>{if(ex.timed)return;const o=document.createElement("option");o.value=ex.id;o.textContent=`${ex.name} (${DAYS[dayId].short})`;sel.appendChild(o)})});
+    DAY_ORDER.forEach(dayId=>{DAYS[dayId].exercises.forEach(ex=>{if(ex.timed)return;const o=document.createElement("option");o.value=ex.id;o.textContent=`${esc(ex.name)} (${DAYS[dayId].short})`;sel.appendChild(o)})});
   }
   renderLiftChart();
   // volume by muscle (this week vs last)
@@ -1191,13 +1192,13 @@ function renderProgress(){
   $("vol-by-muscle").innerHTML=muscles.map(m=>{const v=vol[m]||0;return`<div class="vol-row"><div class="vol-hd"><b>${m}</b><span>${v} sets</span></div><div class="vol-track"><div class="vol-fill" style="width:${v/maxV*100}%;background:${colors[m]}"></div></div></div>`}).join("")+`<div class="tiny mt8">Completed sets this week (Mon–Sun). Aim for 10+ per big muscle.</div>`;
   // PR list
   const prs=[...DB.prs].reverse().slice(0,15);
-  $("pr-list").innerHTML=prs.length?prs.map(p=>{const ex=findEx(p.exId);return`<div class="pr-row"><div><div class="pr-ex">${ex?ex.name:p.exId}</div><div class="pr-date">${fmtDate(p.date)}</div></div><div class="pr-val">${p.val} ${p.type==="e1rm"?"kg e1RM":p.type}</div></div>`}).join(""):`<div class="empty">PRs land here automatically the moment you beat a previous best.</div>`;
+  $("pr-list").innerHTML=prs.length?prs.map(p=>{const ex=findEx(p.exId);return`<div class="pr-row"><div><div class="pr-ex">${esc(ex?ex.name:p.exId)}</div><div class="pr-date">${fmtDate(p.date)}</div></div><div class="pr-val">${p.val} ${p.type==="e1rm"?"kg e1RM":p.type}</div></div>`}).join(""):`<div class="empty">PRs land here automatically the moment you beat a previous best.</div>`;
 }
 function renderLiftChart(){
   const exId=$("prog-ex-sel").value||"bench";
   const ex=findEx(exId),hist=exHistory(exId);
   const card=$("lift-chart-card");
-  if(hist.length<2){card.innerHTML=`<div class="chart-kick">${ex.name}</div><div class="empty">Log this lift in two sessions to unlock the chart.</div>`;return}
+  if(hist.length<2){card.innerHTML=`<div class="chart-kick">${esc(ex.name)}</div><div class="empty">Log this lift in two sessions to unlock the chart.</div>`;return}
   const g=LIFT_GOALS[exId];
   const pts=hist.slice(-20);
   const W=320,H=150,PL=32,PR=8,PT=12,PB=20;
@@ -1207,7 +1208,7 @@ function renderLiftChart(){
   const line=pts.map((p,i)=>`${i?"L":"M"}${px(i).toFixed(1)},${py(p.e).toFixed(1)}`).join("");
   const dots=pts.map((p,i)=>`<circle cx="${px(i).toFixed(1)}" cy="${py(p.e).toFixed(1)}" r="2.6" fill="#e3ff3f"/>`).join("");
   const best=Math.max(...vals),last=pts[pts.length-1];
-  card.innerHTML=`<div class="chart-kick">Estimated 1RM · ${DAYS[DAY_ORDER.find(d=>DAYS[d].exercises.some(e=>e.id===exId))].short}</div><div class="chart-name">${ex.name}</div>
+  card.innerHTML=`<div class="chart-kick">Estimated 1RM · ${DAYS[DAY_ORDER.find(d=>DAYS[d].exercises.some(e=>e.id===exId))].short}</div><div class="chart-name">${esc(ex.name)}</div>
     <div class="kpi3"><div class="kpi"><div class="kpi-l">Best e1RM</div><div class="kpi-v">${best}<small> kg</small></div></div>
     <div class="kpi"><div class="kpi-l">Last top set</div><div class="kpi-v">${last.w}×${last.r}</div></div>
     <div class="kpi"><div class="kpi-l">${g?"To goal":"Sessions"}</div><div class="kpi-v">${g?(Math.max(0,g.target-best)||"🏆")+(g.target-best>0?"":""):hist.length}<small>${g&&g.target-best>0?" kg":""}</small></div></div></div>
@@ -1233,7 +1234,7 @@ function download(name,content,type){const blob=new Blob([content],{type});const
 function backupJSON(){download(`forge-backup-${today()}.json`,JSON.stringify(DB,null,1),"application/json");toast("Backup downloaded — keep it safe")}
 function exportCSV(){
   let csv="Date,Day,Exercise,Set,Weight(kg),Reps,Done\n";
-  DAY_ORDER.forEach(dayId=>{sessDates(dayId).forEach(date=>{const s=getSess(dayId,date);DAYS[dayId].exercises.forEach(ex=>{const sets=s[ex.id];if(!sets)return;sets.forEach((x,i)=>{if(!x||(!x.w&&!x.r))return;csv+=`${date},${DAYS[dayId].label},${ex.name},${i+1},${x.w||""},${x.r||""},${x.done?"Yes":"No"}\n`})})})});
+  DAY_ORDER.forEach(dayId=>{sessDates(dayId).forEach(date=>{const s=getSess(dayId,date);DAYS[dayId].exercises.forEach(ex=>{const sets=s[ex.id];if(!sets)return;sets.forEach((x,i)=>{if(!x||(!x.w&&!x.r))return;csv+=`${date},${DAYS[dayId].label},${esc(ex.name)},${i+1},${x.w||""},${x.r||""},${x.done?"Yes":"No"}\n`})})})});
   csv+="\nDate,Weight(kg)\n";DB.weight.forEach(e=>csv+=`${e.date},${e.kg}\n`);
   csv+="\nDate,Steps\n";Object.entries(DB.steps).forEach(([d,s])=>csv+=`${d},${s}\n`);
   csv+="\nDate,Calories,Protein(g)\n";Object.entries(DB.macros).forEach(([d,m])=>csv+=`${d},${m.kcal},${m.prot}\n`);
@@ -1566,7 +1567,7 @@ back:`<ellipse data-r="head" cx="100" cy="30" rx="19" ry="23"/>
 <ellipse data-r="calf" cx="85" cy="345" rx="13" ry="32"/><ellipse data-r="calf" cx="115" cy="345" rx="13" ry="32"/>`,
 side:`<ellipse data-r="head" cx="96" cy="30" rx="20" ry="23"/>
 <rect x="90" y="50" width="18" height="12" rx="4" data-r="neck"/>
-<path data-r="trap" d="M100 57 L122 66 L119 99 L100 90 Z"/>
+<path data-r="trap" d="M101 68 L121 76 L118 102 L101 94 Z"/>
 <path data-r="chest" d="M78 84 Q69 101 76 120 L90 118 L90 86 Z"/>
 <path data-r="lat" d="M118 100 Q129 126 118 152 L104 144 L104 102 Z"/>
 <path data-r="oblique" d="M82 124 Q75 160 86 198 L100 196 L100 126 Z"/>
@@ -1585,6 +1586,12 @@ let BODY_VIEW="front";
 function setBodyView(v){BODY_VIEW=v;renderBodyMap()}
 function renderBodyMap(){
   const el=$("bodymap");if(!el)return;
+  if(BODY_VIEW==="arms"){
+    el.innerHTML=`<div class="seg" style="margin-bottom:12px">${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>`
+      +renderArmMap()
+      +`<div class="tiny mt12">Each head shown separately — curls hit the short head hardest, rows and pulldowns the long head. Same colour scale as the full body.</div>`;
+    return;
+  }
   const det=regionSets(true),sets=det.sets;
   let svg=BODY[BODY_VIEW];
   // inject attributes only — never a ">" — or the shape's own cx/cy fall outside the tag
@@ -1603,7 +1610,7 @@ function renderBodyMap(){
   }).join("");
   const legend=[["0","#2b4a7a","untouched"],["1–4","#2f9e63","light"],["5–9","#a8c62c","solid"],["10–14","#e8a02a","strong"],["15+","#e0453f","hammered"]];
   el.innerHTML=`<div class="seg" style="margin-bottom:12px">
-      ${["front","back","side"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v[0].toUpperCase()+v.slice(1)}</button>`).join("")}
+      ${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}
     </div>
     <svg viewBox="0 0 200 390" style="width:100%;max-height:340px;display:block" role="img" aria-label="Muscle heat map, ${BODY_VIEW} view">${svg}</svg>
     <div class="row mt12" style="flex-wrap:wrap;gap:6px;justify-content:center">
@@ -1685,7 +1692,7 @@ function foodPicker(q){
   openSheet(`<div class="sheet-title">My foods</div>
     <input class="qa-inp" id="food-q" placeholder="Search…" style="text-align:left" oninput="foodPicker(this.value)" value="${esc(q||"")}">
     <div class="hist-list mt12" style="max-height:46vh;overflow-y:auto">
-      ${list.length?list.map(f=>`<div class="hist-row" onclick='addEntry(${JSON.stringify(f).replace(/'/g,"&#39;")})'>
+      ${list.length?list.map(f=>`<div class="hist-row" onclick="addFoodById('${esc(f.id)}')">
         <div style="flex:1;min-width:0"><div class="hist-date" style="color:var(--text);font-weight:500">${esc(f.label)}</div>
         <div class="tiny">${f.cal} kcal · ${f.pro}P · ${f.carb||0}C · ${f.fat||0}F</div></div>
         <button class="tool-btn" style="flex:0 0 auto;padding:6px 10px" onclick="event.stopPropagation();delFood('${f.id}')">✕</button></div>`).join(""):`<div class="empty">No match.</div>`}
@@ -1693,6 +1700,7 @@ function foodPicker(q){
     <button class="btn btn-full mt12" onclick="closeSheet()">Close</button>`);
   const i=$("food-q");if(i&&q!==undefined){i.focus();i.setSelectionRange(i.value.length,i.value.length)}
 }
+function addFoodById(id){const f=DB.foods.find(x=>x.id===id);if(f)addEntry(f)}
 function delFood(id){DB.foods=DB.foods.filter(f=>f.id!==id);save();foodPicker($("food-q")?$("food-q").value:"")}
 function customFood(){
   openSheet(`<div class="sheet-title">New food</div>
@@ -1735,14 +1743,14 @@ function viewSteps(){
   const max=Math.max(goal,...wk.map(d=>DB.steps[d]||0));
   const bars=wk.map(d=>{const v=DB.steps[d]||0,h=Math.round(v/max*70)||2,fut=d>t;
     return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;${fut?"opacity:.35":""}" onclick="${fut?"":`editSteps('${d}')`}">
-      <div style="width:100%;height:78px;display:flex;align-items:flex-end"><div style="width:100%;border-radius:5px 5px 2px 2px;height:${h}px;background:${v>=goal?"var(--volt)":isAuto("s",d)?"#3a4050":"var(--panel3)"}"></div></div>
+      <div style="width:100%;height:78px;display:flex;align-items:flex-end"><div style="width:100%;border-radius:5px 5px 2px 2px;height:${h}px;background:${v>=goal?"var(--volt)":isAuto("s",d)?"#3a4050":fbIsFrom(d)?"#2a6a8a":"var(--panel3)"}"></div></div>
       <div class="tiny mono">${"MTWTFSS"[(new Date(d+"T12:00").getDay()+6)%7]}</div></div>`}).join("");
   return`${isAuto("s",t)?`<div class="warm-card" style="margin:0 0 12px"><div class="warm-title">Estimated</div><div class="warm-desc">Auto-logged at ${DB.prefs.autoSteps} steps. Tap any bar to correct it.</div></div>`:""}
     <div class="ring-wrap">${ring(s,goal,"#3bc7f3","Steps today","")}</div>
     <div class="quick-add"><input class="qa-inp" id="qa-steps" type="number" inputmode="numeric" placeholder="steps today"><button class="btn btn-volt" onclick="addSteps()">Log</button></div>
     <div class="sec-title mt16">This week · tap a bar to edit</div>
     <div class="card"><div style="display:flex;gap:6px">${bars}</div>
-    <div class="tiny mt12">${wk.filter(d=>d<=t&&(DB.steps[d]||0)>=goal).length} days hit your ${goal.toLocaleString()}-step goal. Grey bars are estimates.</div></div>`;
+    <div class="tiny mt12">${wk.filter(d=>d<=t&&(DB.steps[d]||0)>=goal).length} days hit your ${goal.toLocaleString()}-step goal. Grey bars are estimates${DB.fb&&DB.fb.at?", blue came from Fitbit":""}.</div></div>`;
 }
 function editSteps(d){
   openSheet(`<div class="sheet-title">${fmtDate(d)} steps</div>
@@ -1880,14 +1888,28 @@ buildWorkout=function(){
   _buildWorkout();
   const dayId=WO.dayId,lastDate=lastSessionBefore(dayId,WO.date);
   (DAYS[dayId].exercises||[]).forEach(ex=>{
-    const tools=document.querySelector("#body-"+ex.id+" .ex-tools");if(!tools)return;
-    if(!tools.innerHTML.includes("Repeat last")){
-      const b=document.createElement("button");
-      b.className="tool-btn";b.textContent="↺ Repeat last";
-      const has=lastDate&&(getSess(dayId,lastDate)||{})[ex.id];
-      if(!has){b.style.opacity=".45"}
-      b.onclick=()=>has?autofill(ex.id):toast("No previous session for this exercise yet");
-      tools.appendChild(b);
+    const body=$("body-"+ex.id);if(!body)return;
+    const tools=body.querySelector(".ex-tools");if(!tools)return;
+
+    // ⬇️ Fill from set 1 — sits directly under the set rows, where it's needed
+    if(!ex.timed){
+      const fill=document.createElement("button");
+      fill.className="btn btn-full";
+      fill.style.cssText="margin-top:2px;padding:9px;font-size:12px;background:#1e2208;border-color:#3a4310;color:var(--volt)";
+      fill.innerHTML="⬇️ Fill sets 2–"+ex.sets+" from set 1";
+      fill.onclick=()=>fillFromSet1(ex.id);
+      tools.parentNode.insertBefore(fill,tools);
+    }
+    // ↕ superset jump
+    const ss=ssInfo(dayId,ex.id);
+    if(ss){
+      const p=findEx(ss.partner);
+      const j=document.createElement("button");
+      j.className="btn btn-full";
+      j.style.cssText="margin-top:8px;padding:10px;font-size:12px;background:#0d2530;border-color:#1a4a5e;color:var(--sky)";
+      j.textContent="↕ SUPERSET — go to "+(p?p.name:"partner");
+      j.onclick=()=>ssJump(ex.id);
+      tools.parentNode.insertBefore(j,tools.nextSibling);
     }
     const r=document.createElement("button");
     r.className="tool-btn";r.textContent="⏱ Rest";
@@ -1922,6 +1944,8 @@ renderMore=function(){
     d.id="v2-settings";
     d.innerHTML=`<div class="sec-title mt16">Your program</div>
       <div class="card"><div class="set-item" onclick="go('editor')"><div><div class="set-item-l">Edit exercises &amp; days</div><div class="set-item-d">Rename, reorder, add or remove anything</div></div><div class="set-item-r">›</div></div></div>
+      <div class="sec-title mt16">Fitbit sync</div>
+      <div class="card" id="fb-card"></div>
       <div class="sec-title mt16">Auto-logging</div>
       <div class="card">
         <div class="set-item" onclick="editPref('autoSteps','Steps assumed on unlogged days')"><div><div class="set-item-l">Assumed daily steps</div><div class="set-item-d">Written automatically, editable any time</div></div><div class="set-item-r" id="s-asteps">—</div></div>
@@ -1942,6 +1966,7 @@ renderMore=function(){
       </div>`;
     host.appendChild(d);
   }
+  const fbc=$("fb-card");if(fbc)fbc.innerHTML=fbCard();
   const set=(id,v)=>{const el=$(id);if(el)el.textContent=v};
   set("s-asteps",DB.prefs.autoSteps);set("s-akcal",DB.prefs.autoKcal);set("s-aprot",DB.prefs.autoProt+" g");
   set("s-age",DB.prefs.age);set("s-height",DB.prefs.height+" cm");set("s-burn",DB.prefs.trainBurn+" kcal");
@@ -1977,9 +2002,303 @@ function initV2(){
 const _doImport=doImport;
 doImport=function(replace){_doImport(replace);v2migrate();runAutoLog();rebuildMaps();};
 
+/* ══════ DETAILED ARM ANATOMY (zoomed view) ══════ */
+const SUB_NAME={trap_up:"Upper traps",trap_mid:"Mid traps",delt_front:"Front delt",delt_side:"Side delt",
+delt_rear:"Rear delt",bi_long:"Biceps long head",bi_short:"Biceps short head",brach:"Brachialis",
+tri_long:"Triceps long head",tri_lat:"Triceps lateral head",tri_med:"Triceps medial head",
+fore_flex:"Forearm flexors",fore_ext:"Forearm extensors"};
+/* which heads each lift actually hits */
+const ARM_MAP={
+bench:["delt_front","tri_lat","tri_med"],incline:["delt_front","tri_lat","tri_med"],
+shoulder:["delt_front","delt_side","tri_long","tri_lat"],facepull:["delt_rear","trap_mid"],
+pushdown:["tri_lat","tri_med"],lateral:["delt_side"],chestfly:["delt_front"],
+hang:["fore_flex","fore_ext"],hang3:["fore_flex","fore_ext"],farmers:["fore_flex","fore_ext","trap_up"],
+pullup:["bi_long","brach","delt_rear"],bbrow:["bi_long","brach","trap_mid","delt_rear"],
+srow:["bi_short","brach","trap_mid"],lmrow:["bi_long","brach","trap_mid"],
+curl:["bi_short","bi_long","brach"],shrug:["trap_up","fore_flex"],wrist:["fore_flex"],
+deadlift:["trap_up","fore_flex"],rackpull:["trap_up","fore_flex"],squat:[],rdl:[],lunge:[],
+crunch:[],plank:[],hollow:[],lmtwist:[],calf4:[],hipthrust:[],pullthr:[]};
+const SUB_OF={trap:["trap_up","trap_mid"],delt:["delt_front","delt_side"],reardelt:["delt_rear"],
+bi:["bi_long","bi_short","brach"],tri:["tri_long","tri_lat","tri_med"],fore:["fore_flex","fore_ext"]};
+
+function armSets(){
+  const out={},src={},wk=weekDates();
+  DAY_ORDER.forEach(dayId=>wk.forEach(date=>{
+    const s=getSess(dayId,date);if(!s)return;
+    (DAYS[dayId].exercises||[]).forEach(ex=>{
+      const n=(s[ex.id]||[]).filter(x=>x&&x.done).length;if(!n)return;
+      let regs=ARM_MAP[ex.id];
+      if(!regs){ // custom exercise — expand its coarse regions
+        regs=[];((EX_REGIONS[ex.id]||MUSCLE_FALLBACK[ex.muscle]||[]).forEach(r=>{
+          (SUB_OF[r]||[]).forEach(x=>regs.push(x))}));
+      }
+      regs.forEach(r=>{out[r]=(out[r]||0)+n;(src[r]=src[r]||[]).push(ex.name+" ×"+n)});
+    });
+  }));
+  return{sets:out,src:src};
+}
+/* Two arms side by side: left shows the front, right shows the back */
+const ARM_SVG=`
+<path data-r="trap_up" d="M74 74 L100 62 L126 74 L120 96 L80 96 Z"/>
+<path data-r="trap_mid" d="M80 98 L100 92 L120 98 L114 124 L86 124 Z"/>
+<ellipse data-r="delt_side" cx="52" cy="104" rx="19" ry="21"/>
+<path data-r="delt_front" d="M40 100 Q52 82 68 96 L68 124 Q48 128 40 116 Z"/>
+<ellipse data-r="delt_rear" cx="148" cy="104" rx="19" ry="21"/>
+<path data-r="bi_long" d="M36 130 Q28 164 36 200 L52 200 L52 128 Z"/>
+<path data-r="bi_short" d="M54 128 L54 200 L70 200 Q76 164 68 130 Z"/>
+<path data-r="brach" d="M34 202 Q32 216 38 226 L68 226 Q74 216 72 202 Z"/>
+<path data-r="tri_long" d="M130 130 Q124 166 130 198 L146 198 L146 128 Z"/>
+<path data-r="tri_lat" d="M148 128 L148 198 L166 198 Q172 164 164 130 Z"/>
+<path data-r="tri_med" d="M130 200 Q130 216 136 226 L166 226 Q170 214 168 200 Z"/>
+<path data-r="fore_flex" d="M38 232 Q30 274 40 314 L68 314 Q76 274 68 232 Z"/>
+<path data-r="fore_ext" d="M134 232 Q126 274 136 314 L164 314 Q172 274 164 232 Z"/>
+<ellipse cx="52" cy="332" rx="15" ry="17" fill="#1c2029" stroke="#2e3342" stroke-width="1.5"/>
+<ellipse cx="150" cy="332" rx="15" ry="17" fill="#1c2029" stroke="#2e3342" stroke-width="1.5"/>`;
+const ARM_LABELS=[[52,50,"FRONT OF ARM"],[150,50,"BACK OF ARM"],[100,352,"Traps sit across the top of the shoulders"]];
+
+function renderArmMap(){
+  const det=armSets(),sets=det.sets;
+  let svg=ARM_SVG.replace(/data-r="(\w+)"/g,(m,r)=>{
+    const n=sets[r]||0;
+    return `fill="${heatColor(n)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}"`;
+  });
+  let labels=ARM_LABELS.map(l=>`<text x="${l[0]}" y="${l[1]}" font-size="${l[1]>340?8:9}" fill="#8a90a0" font-family="IBM Plex Mono" text-anchor="middle" letter-spacing=".08em">${l[2]}</text>`).join("");
+  const order=["delt_front","delt_side","delt_rear","bi_long","bi_short","brach","tri_long","tri_lat","tri_med","fore_flex","fore_ext","trap_up","trap_mid"];
+  const rows=order.map(r=>{const n=sets[r]||0;
+    return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${SUB_NAME[r]}</div>
+      <div class="tiny">${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
+      <div class="hist-val" style="color:${heatColor(n)}">${n}</div></div>`}).join("");
+  return`<svg viewBox="0 0 200 362" style="width:100%;max-height:400px;display:block" role="img" aria-label="Detailed arm and shoulder heat map">${svg}${labels}</svg>${rows}`;
+}
+
+/* ══════ TINY BODY ICON per exercise card ══════ */
+const MINI={
+head:'<circle cx="19" cy="6" r="4.4"/>',
+parts:{
+ trap:'<path d="M12 12 L19 10 L26 12 L25 15 L13 15 Z"/>',
+ delt:'<ellipse cx="10" cy="16" rx="3.4" ry="4"/><ellipse cx="28" cy="16" rx="3.4" ry="4"/>',
+ reardelt:'<ellipse cx="10" cy="16" rx="3.4" ry="4"/><ellipse cx="28" cy="16" rx="3.4" ry="4"/>',
+ chest:'<path d="M13 14 L19 13 L19 24 Q14 25 12.5 20 Z"/><path d="M25 14 L19 13 L19 24 Q24 25 25.5 20 Z"/>',
+ lat:'<path d="M12.5 16 Q9 22 12 28 L17 25 L17 15 Z"/><path d="M25.5 16 Q29 22 26 28 L21 25 L21 15 Z"/>',
+ upback:'<rect x="14" y="16" width="10" height="9" rx="2"/>',
+ lowback:'<rect x="15" y="25" width="8" height="7" rx="2"/>',
+ bi:'<ellipse cx="8.5" cy="24" rx="2.6" ry="5.2"/><ellipse cx="29.5" cy="24" rx="2.6" ry="5.2"/>',
+ tri:'<ellipse cx="8.5" cy="24" rx="2.6" ry="5.2"/><ellipse cx="29.5" cy="24" rx="2.6" ry="5.2"/>',
+ fore:'<ellipse cx="7.5" cy="34" rx="2.4" ry="5.4"/><ellipse cx="30.5" cy="34" rx="2.4" ry="5.4"/>',
+ abs:'<rect x="16" y="25" width="6" height="10" rx="1.8"/>',
+ oblique:'<path d="M13 26 Q11.5 31 14 36 L16 36 L16 26 Z"/><path d="M25 26 Q26.5 31 24 36 L22 36 L22 26 Z"/>',
+ glute:'<path d="M13 37 Q12 43 18.5 43.5 L18.5 37 Z"/><path d="M25 37 Q26 43 19.5 43.5 L19.5 37 Z"/>',
+ quad:'<path d="M14 38 Q11.5 47 14 57 L18 57 Q18.5 47 18 38 Z"/><path d="M24 38 Q26.5 47 24 57 L20 57 Q19.5 47 20 38 Z"/>',
+ ham:'<path d="M14 40 Q12 48 14 57 L18 57 Q18.5 48 18 40 Z"/><path d="M24 40 Q26 48 24 57 L20 57 Q19.5 48 20 40 Z"/>',
+ calf:'<ellipse cx="15.5" cy="64" rx="2.8" ry="5"/><ellipse cx="22.5" cy="64" rx="2.8" ry="5"/>'
+}};
+const MINI_ORDER=["trap","lat","upback","lowback","chest","delt","reardelt","bi","tri","fore","abs","oblique","glute","quad","ham","calf"];
+function miniBody(exId,muscle){
+  const hit=EX_REGIONS[exId]||MUSCLE_FALLBACK[muscle]||[];
+  let g=`<path d="M13 12 L19 10 L25 12 L26 22 L24 36 L25 44 L24 58 L23 70 L15 70 L14 58 L13 44 L14 36 L12 22 Z" fill="#1a1d26"/>`;
+  MINI_ORDER.forEach(r=>{
+    if(!MINI.parts[r])return;
+    const on=hit.indexOf(r)>=0;
+    g+=`<g fill="${on?"var(--volt)":"#22262f"}" opacity="${on?1:.85}">${MINI.parts[r]}</g>`;
+  });
+  g+=`<g fill="#2e3342">${MINI.head}</g>`;
+  return`<svg viewBox="0 0 38 74" width="26" height="50" aria-hidden="true" style="flex:0 0 auto;opacity:.95">${g}</svg>`;
+}
+
+/* ══════ AUTOFILL — from set 1, like the old app ══════ */
+function fillFromSet1(exId){
+  const ex=findEx(exId);if(!ex)return;
+  const w0=$("w-"+exId+"-0"),r0=$("r-"+exId+"-0");
+  let w=w0.value!==""?+w0.value:(w0.placeholder?+w0.placeholder:0);
+  let r=r0.value!==""?+r0.value:(r0.placeholder?+r0.placeholder:0);
+  if(!w&&!r){toast("Enter set 1 first, then fill");return}
+  if(w0.value===""&&w){w0.value=w;setVal(exId,0,"w",w);w0.classList.add("logged")}
+  if(r0.value===""&&r){r0.value=r;setVal(exId,0,"r",r);r0.classList.add("logged")}
+  for(let i=1;i<ex.sets;i++){
+    const wi=$("w-"+exId+"-"+i),ri=$("r-"+exId+"-"+i);
+    if(wi&&w){wi.value=w;setVal(exId,i,"w",w);wi.classList.add("logged")}
+    if(ri&&r){ri.value=r;setVal(exId,i,"r",r);ri.classList.add("logged")}
+  }
+  haptic(15);toast(`Sets 2–${ex.sets} filled with ${w?w+" kg × ":""}${r}`);
+}
+
+/* ══════ SUPERSET JUMP ══════ */
+function ssJump(exId){
+  const ss=ssInfo(WO.dayId,exId);if(!ss)return;
+  const el=$("ex-"+ss.partner);if(!el)return;
+  const body=$("body-"+ss.partner);if(body&&!body.classList.contains("open"))body.classList.add("open");
+  el.scrollIntoView({behavior:"smooth",block:"center"});
+  el.style.transition="box-shadow .3s";el.style.boxShadow="0 0 0 2px var(--sky)";
+  setTimeout(()=>el.style.boxShadow="",1400);
+}
+
+/* ══════ SPARKLINE INFO ══════ */
+function sparkInfo(){
+  openSheet(`<div class="sheet-title">The yellow line</div>
+    <div class="subtle" style="line-height:1.7;font-size:13.5px">
+      It's your <b style="color:var(--text)">estimated 1-rep max</b> for this exercise across your last ten sessions.<br><br>
+      Forge works it out from your best set each session — 60 kg × 8 reps estimates roughly a 76 kg max — so you never have to actually attempt a true one-rep max to see progress.<br><br>
+      <b style="color:var(--volt)">Line going up = getting stronger.</b> It's the honest measure, because it accounts for both weight and reps: adding a rep at the same weight counts, and so does adding weight at the same reps.
+    </div>
+    <button class="btn btn-volt btn-full mt16" onclick="closeSheet()">Got it</button>`);
+}
+
+/* ══════════════ FITBIT SYNC ══════════════
+   Legacy Fitbit Web API, OAuth 2.0 Authorization Code + PKCE (app type: Client,
+   no secret — safe for a static site). Sunsets 30 Sep 2026; the app warns you.  */
+const FB={auth:"https://www.fitbit.com/oauth2/authorize",token:"https://api.fitbit.com/oauth2/token",
+  steps:"https://api.fitbit.com/1/user/-/activities/steps/date/",sunset:"2026-09-30"};
+function fbRedirect(){return location.origin+location.pathname}
+function fbRand(n){const a=new Uint8Array(n);crypto.getRandomValues(a);
+  const C="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+  return[...a].map(x=>C[x%C.length]).join("")}
+function fbB64u(buf){let s="";new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b));
+  return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")}
+async function fbChallenge(v){return fbB64u(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v)))}
+function fbDaysLeft(){return Math.round((new Date(FB.sunset)-new Date(today()))/864e5)}
+
+/* builds the authorize URL and stashes the PKCE verifier; returns null if not ready */
+async function fbAuthUrl(){
+  const cid=(DB.prefs.fbClientId||"").trim();
+  if(!cid){toast("Paste your Fitbit Client ID first");return null}
+  if(location.protocol!=="https:"&&location.hostname!=="localhost"){toast("Fitbit needs an https:// address");return null}
+  const v=fbRand(96),st=fbRand(16);
+  try{sessionStorage.setItem("fb_v",v);sessionStorage.setItem("fb_s",st);
+      localStorage.setItem("fb_v",v);localStorage.setItem("fb_s",st)}catch(e){}
+  const ch=await fbChallenge(v);
+  return`${FB.auth}?response_type=code&client_id=${encodeURIComponent(cid)}`+
+    `&scope=activity&code_challenge=${ch}&code_challenge_method=S256&state=${st}`+
+    `&redirect_uri=${encodeURIComponent(fbRedirect())}&prompt=login`;
+}
+async function fbConnect(){const u=await fbAuthUrl();if(u)location.href=u}
+async function fbHandleReturn(){
+  const p=new URLSearchParams(location.search);
+  const code=p.get("code"),st=p.get("state"),err=p.get("error");
+  if(!code&&!err)return false;
+  const clean=()=>{try{history.replaceState({},"",fbRedirect())}catch(e){}};
+  if(err){clean();toast("Fitbit: "+(p.get("error_description")||err).slice(0,60));return true}
+  const want=sessionStorage.getItem("fb_s")||localStorage.getItem("fb_s");
+  const v=sessionStorage.getItem("fb_v")||localStorage.getItem("fb_v");
+  clean();
+  if(!v||(want&&st!==want)){toast("Fitbit: security check failed — try connecting again");return true}
+  try{
+    const r=await fetch(FB.token,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+      body:new URLSearchParams({client_id:(DB.prefs.fbClientId||"").trim(),grant_type:"authorization_code",
+        code,redirect_uri:fbRedirect(),code_verifier:v})});
+    const j=await r.json();
+    if(!j.access_token)throw new Error(j.errors&&j.errors[0]?j.errors[0].message:"token refused");
+    fbStore(j);
+    try{localStorage.removeItem("fb_v");localStorage.removeItem("fb_s")}catch(e){}
+    toast("Fitbit connected ✓",true);
+    await fbSync(false);
+  }catch(e){toast("Fitbit connect failed: "+String(e.message).slice(0,70))}
+  return true;
+}
+function fbStore(j){
+  DB.fb={at:j.access_token,rt:j.refresh_token||(DB.fb&&DB.fb.rt)||"",
+    exp:Date.now()+((+j.expires_in||28800)*1000),uid:j.user_id||(DB.fb&&DB.fb.uid)||""};
+  save();
+}
+async function fbAccess(){
+  if(!DB.fb||!DB.fb.at)return null;
+  if(Date.now()<DB.fb.exp-120000)return DB.fb.at;
+  const r=await fetch(FB.token,{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},
+    body:new URLSearchParams({grant_type:"refresh_token",refresh_token:DB.fb.rt,client_id:(DB.prefs.fbClientId||"").trim()})});
+  const j=await r.json();
+  if(!j.access_token){DB.fb=null;save();throw new Error("session expired — reconnect")}
+  fbStore(j);return j.access_token;
+}
+function fbIsFrom(d){return !!(DB.fbDays&&DB.fbDays[d])}
+async function fbSync(quiet){
+  if(!DB.fb||!DB.fb.at){if(!quiet)toast("Connect Fitbit first");return}
+  if(FB._busy)return;FB._busy=true;
+  try{
+    const t=await fbAccess();
+    const s=new Date();s.setDate(s.getDate()-29);
+    const r=await fetch(`${FB.steps}${dstr(s)}/${today()}.json`,{headers:{Authorization:"Bearer "+t}});
+    if(r.status===401){DB.fb=null;save();renderMore&&renderMore();throw new Error("session expired — reconnect")}
+    if(r.status===429)throw new Error("Fitbit rate limit — try again in an hour");
+    if(!r.ok)throw new Error("Fitbit returned "+r.status);
+    const j=await r.json(),arr=j["activities-steps"]||[];
+    let n=0;
+    DB.fbDays=DB.fbDays||{};
+    arr.forEach(d=>{
+      const v=Math.round(+d.value||0),date=d.dateTime;
+      if(!v||!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
+      // your own edits win; only estimates and previous Fitbit values are replaced
+      const mine=DB.steps[date]!=null&&!isAuto("s",date)&&!fbIsFrom(date);
+      if(mine)return;
+      if(DB.steps[date]!==v){DB.steps[date]=v;n++}
+      clearAuto("s",date);DB.fbDays[date]=1;
+    });
+    DB.fbLast=Date.now();save();
+    if(!quiet||n)toast(n?`Fitbit: ${n} ${n===1?"day":"days"} of steps synced`:"Fitbit: already up to date",true);
+    if(CUR==="fuel")renderFuel();
+    if(CUR==="more")renderMore();
+    if(CUR==="home")renderHome();
+  }catch(e){if(!quiet)toast("Fitbit: "+String(e.message).slice(0,70))}
+  finally{FB._busy=false}
+}
+function fbDisconnect(){
+  if(!confirm("Disconnect Fitbit? Steps already synced stay in Forge."))return;
+  DB.fb=null;save();renderMore();toast("Fitbit disconnected");
+}
+function fbSaveId(){
+  DB.prefs.fbClientId=($("fb-cid").value||"").trim();save();
+  toast(DB.prefs.fbClientId?"Client ID saved":"Client ID cleared");renderMore();
+}
+function fbSetup(){
+  openSheet(`<div class="sheet-title">Connect Fitbit — one-time setup</div>
+    <div class="subtle" style="line-height:1.75;font-size:13px">
+      Fitbit needs you to register Forge as your own app. Takes about three minutes, and it's free.<br><br>
+      <b style="color:var(--text)">1.</b> On a computer, go to <b style="color:var(--sky)">dev.fitbit.com/apps/new</b> and sign in.<br><br>
+      <b style="color:var(--text)">2.</b> Fill the form. The two that matter:<br>
+      &nbsp;&nbsp;• <b style="color:var(--text)">OAuth 2.0 Application Type</b> → <b style="color:var(--volt)">Client</b><br>
+      &nbsp;&nbsp;• <b style="color:var(--text)">Redirect URL</b> → paste exactly:<br>
+      <div class="card mt8 mb8" style="padding:10px"><span class="mono" style="font-size:11px;word-break:break-all;color:var(--volt)">${esc(fbRedirect())}</span></div>
+      &nbsp;&nbsp;• Application Name can't contain the word "Fitbit"<br>
+      &nbsp;&nbsp;• Default Access Type → <b>Read Only</b><br><br>
+      <b style="color:var(--text)">3.</b> Register, then copy the <b style="color:var(--volt)">OAuth 2.0 Client ID</b> — six characters, like 23ABCD.<br><br>
+      <b style="color:var(--text)">4.</b> Paste it into Forge and tap Connect.
+    </div>
+    <button class="btn btn-volt btn-full mt16" onclick="closeSheet()">Got it</button>`);
+}
+function fbCard(){
+  const left=fbDaysLeft(),cid=DB.prefs.fbClientId||"";
+  const on=!!(DB.fb&&DB.fb.at);
+  const last=DB.fbLast?new Date(DB.fbLast):null;
+  const ago=last?(()=>{const m=Math.round((Date.now()-DB.fbLast)/60000);
+    return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":Math.round(m/1440)+" d ago"})():"never";
+  const synced=DB.fbDays?Object.keys(DB.fbDays).length:0;
+  return`${on?`
+    <div class="set-item"><div><div class="set-item-l">Connected ✓</div>
+      <div class="set-item-d">Last sync ${ago} · ${synced} days from Fitbit</div></div>
+      <div class="set-item-r" style="color:var(--pos)">●</div></div>
+    <div class="set-item" onclick="fbSync(false)"><div><div class="set-item-l">Sync now</div>
+      <div class="set-item-d">Pulls the last 30 days of steps</div></div><div class="set-item-r">↻</div></div>
+    <div class="set-item" onclick="fbDisconnect()"><div><div class="set-item-l">Disconnect</div>
+      <div class="set-item-d">Synced steps stay in Forge</div></div><div class="set-item-r">✕</div></div>`
+  :`<div class="set-item" onclick="fbSetup()"><div><div class="set-item-l">How to set this up</div>
+      <div class="set-item-d">Register Forge with Fitbit — about 3 minutes, free</div></div><div class="set-item-r">›</div></div>
+    <div class="mt12"><input class="qa-inp" id="fb-cid" style="text-align:left" placeholder="Fitbit Client ID (e.g. 23ABCD)" value="${esc(cid)}" onchange="fbSaveId()"></div>
+    <button class="btn ${cid?"btn-volt":""} btn-full mt8" onclick="fbSaveId();fbConnect()">Connect Fitbit</button>`}
+    <div class="tiny mt12" style="line-height:1.6">${left>0
+      ?`⚠️ Fitbit retires this API on <b style="color:var(--ember)">30 Sep 2026</b> — about ${left} days away. Your synced steps stay in Forge; only the live connection stops.`
+      :`⚠️ Fitbit's legacy API shut down on 30 Sep 2026. This connection no longer syncs — your existing steps are unaffected.`}</div>
+    <div class="tiny mt8">Your edits always win: a day you typed by hand is never overwritten by a sync.</div>`;
+}
+
 /* ---------- INIT ---------- */
 initV2();
 renderHome();
+(async function(){
+  try{
+    const returned=await fbHandleReturn();
+    // quiet background sync at most once every 3 hours
+    if(!returned&&DB.fb&&DB.fb.at&&(!DB.fbLast||Date.now()-DB.fbLast>108e5))fbSync(true);
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
