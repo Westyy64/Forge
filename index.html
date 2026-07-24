@@ -10,6 +10,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0b0e">
 <title>FORGE — Train. Log. Beat it.</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Forge">
+<meta name="application-name" content="Forge">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -398,6 +403,7 @@ a{color:var(--sky);text-decoration:none}
       <div class="card">
         <div id="install-row" class="set-item" onclick="triggerInstall()" style="display:none"><div><div class="set-item-l">Install as an app</div><div class="set-item-d">Home-screen icon, full screen, works offline</div></div><div class="set-item-r">＋</div></div>
         <div id="install-ios" class="set-item" style="display:none"><div><div class="set-item-l">Add to your Home Screen</div><div class="set-item-d">Tap Share <b>⎋</b> in Safari, then <b>Add to Home Screen</b></div></div><div class="set-item-r">⎋</div></div>
+        <div id="install-warn" class="set-item" style="display:none"></div>
         <div class="subtle" style="line-height:1.65">
           <b style="color:var(--text)">Hosting:</b> OneDrive often serves a fresh copy each visit, which wipes saved data. <b style="color:var(--text)">GitHub Pages</b> and <b style="color:var(--text)">Netlify Drop</b> are free, give you one permanent HTTPS address, and let the app install to your home screen.<br><br><b style="color:var(--text)">Privacy:</b> everything you log stays in this browser on this phone — it is never uploaded, so nobody can see your training. The hosted page itself is public, so treat the URL as shareable.<br><br>Tap <b style="color:var(--text)">Back up everything</b> weekly regardless — it's your insurance.
         </div>
@@ -1208,6 +1214,7 @@ function renderMore(){
   $("s-prot").textContent=DB.prefs.proteinTarget+" g";
   $("s-steps").textContent=DB.prefs.stepGoal;
   $("s-sound").textContent=DB.prefs.sound?"On":"Off";
+  installState();
 }
 function editPref(key,label){const v=prompt(label,DB.prefs[key]);if(v===null)return;const n=+v;if(!n){toast("Enter a number");return}DB.prefs[key]=n;save();renderMore();toast("Saved")}
 function toggleSound(){DB.prefs.sound=!DB.prefs.sound;save();renderMore()}
@@ -1353,13 +1360,32 @@ function importOld(){
   if(sessions)go("home");
 }
 
-/* ---------- PWA ---------- */
+/* ---------- PWA: real manifest + service worker (see manifest.json / sw.js) ---------- */
 let deferredPrompt=null;
-const manifest={name:"Forge",short_name:"Forge",start_url:".",display:"standalone",background_color:"#0a0b0e",theme_color:"#0a0b0e",icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230a0b0e'/%3E%3Ctext x='50' y='68' font-size='52' text-anchor='middle' font-family='Arial Black' fill='%23e3ff3f'%3EF%3C/text%3E%3C/svg%3E",sizes:"any",type:"image/svg+xml"}]};
-try{const mb=new Blob([JSON.stringify(manifest)],{type:"application/json"});const ml=document.createElement("link");ml.rel="manifest";ml.href=URL.createObjectURL(mb);document.head.appendChild(ml)}catch(e){}
-window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;const r=$("install-row");if(r)r.style.display="flex"});
-if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!navigator.standalone){const r=$("install-ios");if(r)r.style.display="flex"}
-function triggerInstall(){if(deferredPrompt){deferredPrompt.prompt();deferredPrompt=null}}
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+function installState(){
+  const standalone=(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches)||navigator.standalone||false;
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  const https=location.protocol==="https:"||location.hostname==="localhost";
+  const row=$("install-row"),iosRow=$("install-ios"),warn=$("install-warn");
+  if(!row)return;
+  row.style.display=iosRow.style.display=warn.style.display="none";
+  if(standalone){warn.style.display="flex";warn.innerHTML='<div><div class="set-item-l">Installed ✓</div><div class="set-item-d">You\'re running Forge as an app</div></div><div class="set-item-r" style="color:var(--pos)">●</div>';return}
+  if(!https){warn.style.display="flex";warn.innerHTML='<div><div class="set-item-l" style="color:var(--ember)">Can\'t install from here</div><div class="set-item-d">Installing needs an https:// address. Host the file (see the guide) — from a downloaded file or OneDrive link, Chrome can only make a plain shortcut.</div></div>';return}
+  if(ios){iosRow.style.display="flex";return}
+  if(deferredPrompt)row.style.display="flex";
+  else{warn.style.display="flex";warn.innerHTML='<div><div class="set-item-l">Install from the Chrome menu</div><div class="set-item-d">Tap ⋮ → <b>Install app</b>. If only "Create shortcut" appears, pull to refresh once and try again.</div></div><div class="set-item-r">⋮</div>'}
+}
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;installState()});
+window.addEventListener("appinstalled",()=>{deferredPrompt=null;toast("Installed — open Forge from your home screen",true);installState()});
+async function triggerInstall(){
+  if(!deferredPrompt){toast("Use the Chrome ⋮ menu → Install app");return}
+  deferredPrompt.prompt();
+  try{await deferredPrompt.userChoice}catch(e){}
+  deferredPrompt=null;installState();
+}
 
 /* ---------- INIT ---------- */
 renderHome();
