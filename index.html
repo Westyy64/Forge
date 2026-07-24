@@ -316,7 +316,7 @@ a{color:var(--sky);text-decoration:none}
     <div class="eyebrow">4-Day Split · Cortex SM-20</div>
     <div class="h-display">PICK YOUR<br><em>BATTLE</em></div>
     <div class="mt16" id="day-list"></div>
-    <div class="tiny mt12" style="text-align:center">Superset pairs marked <span class="mono" style="color:var(--sky)">A/B</span> — no rest between them.</div>
+    <button class="btn btn-ghost btn-full mt12" onclick="ssHelp()">What does SS·A / SS·B mean?</button>
   </div>
 </div>
 
@@ -346,6 +346,7 @@ a{color:var(--sky);text-decoration:none}
       <button id="ftab-macros" class="active" onclick="fuelTab('macros')">Macros</button>
       <button id="ftab-weight" onclick="fuelTab('weight')">Weight</button>
       <button id="ftab-steps" onclick="fuelTab('steps')">Steps</button>
+      <button id="ftab-balance" onclick="fuelTab('balance')">Balance</button>
     </div>
     <div id="fuel-body"></div>
   </div>
@@ -374,6 +375,13 @@ a{color:var(--sky);text-decoration:none}
       <div class="card" id="pr-list"></div>
     </div>
   </div>
+</div>
+
+<!-- ═══════════ PROGRAM EDITOR ═══════════ -->
+<div id="scr-editor" class="screen">
+  <div class="wo-topbar"><button class="back-btn" onclick="go('more')" aria-label="Back">‹</button><div class="wo-topname">Edit program</div></div>
+  <div class="wrap"><div class="subtle mb16">Change anything: rename days, reorder or swap exercises, add a fifth day. Your history is never deleted.</div>
+  <div id="editor-body"></div></div>
 </div>
 
 <!-- ═══════════ MORE / SETTINGS ═══════════ -->
@@ -436,6 +444,7 @@ a{color:var(--sky);text-decoration:none}
   <div class="rest-ex" id="rest-ex">—</div>
   <div class="rest-next" id="rest-next"></div>
   <div class="rest-btns">
+    <button class="btn" onclick="restSub(15)">−15s</button>
     <button class="btn" onclick="restAdd(30)">+30s</button>
     <button class="btn btn-volt" onclick="restSkip()">I'm ready</button>
   </div>
@@ -458,7 +467,7 @@ a{color:var(--sky);text-decoration:none}
    ═══════════════════════════════════════════════ */
 
 /* ---------- PROGRAM (from your existing plan) ---------- */
-const DAYS={
+let DAYS={
   day1:{label:"Day 1 · Push",short:"PUSH",sub:"Chest · Shoulders · Triceps · Grip",dur:"~60 min",exercises:[
     {id:"bench",name:"Barbell Bench Press",type:"compound",sets:4,reps:"6–8",muscle:"Chest",equip:"Rack + barbell (20 kg bar)"},
     {id:"incline",name:"Smith Incline Press",type:"compound",sets:3,reps:"8–12",muscle:"Chest",equip:"Smith machine + bench (16 kg bar)"},
@@ -536,12 +545,13 @@ const TIPS={
 };
 const LIFT_GOALS={bench:{target:100,label:"Bench 100 kg"},squat:{target:100,label:"Squat 100 kg"},deadlift:{target:100,label:"Deadlift 100 kg"},hipthrust:{target:85,label:"Hip Thrust 85 kg"}};
 const TYPE_META={compound:{c:"var(--volt)",l:"Compound",rest:150,tag:"tag-c",restLbl:"2–3 min rest"},isolation:{c:"var(--ember)",l:"Isolation",rest:75,tag:"tag-i",restLbl:"60–90 s rest"},finisher:{c:"var(--iris)",l:"Finisher",rest:60,tag:"tag-f",restLbl:"60 s rest"}};
-const DAY_ORDER=["day1","day2","day3","day4"];
+let DAY_ORDER=["day1","day2","day3","day4"];
+const DEFAULT_DAYS=JSON.parse(JSON.stringify(DAYS)),DEFAULT_ORDER=DAY_ORDER.slice();
 
 /* ---------- STORE ---------- */
 const KEY="forge-v1";
 let DB=load();
-function blank(){return{prefs:{goalWeight:85,kcalTarget:2200,proteinTarget:200,stepGoal:5000,sound:true},sessions:{},weight:[],steps:{},macros:{},prs:[]}}
+function blank(){return{prefs:{goalWeight:85,kcalTarget:2200,proteinTarget:200,stepGoal:5000,sound:true,age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60},sessions:{},weight:[],steps:{},macros:{},prs:[]}}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.prefs)return Object.assign(blank(),d)}catch(e){}return blank()}
 let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast("⚠️ Save failed — storage full?")}},250)}
@@ -583,6 +593,7 @@ function go(name){
   if(name==="fuel")renderFuel();
   if(name==="progress")renderProgress();
   if(name==="more")renderMore();
+  if(name==="editor")renderEditor();
   $("scr-"+name).scrollTop=0;
 }
 /* ---------- HOME ---------- */
@@ -1231,7 +1242,8 @@ function exportCSV(){
 
 /* ---------- IMPORT: .json backup or .csv export, merge or replace ---------- */
 function normName(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"")}
-const EX_MAP=(()=>{const m={};DAY_ORDER.forEach(d=>{m[d]={};DAYS[d].exercises.forEach(e=>m[d][normName(e.name)]=e.id)});return m})();
+const EX_MAP=(()=>{  // rebuilt by rebuildMaps() when the program changes
+  const m={};DAY_ORDER.forEach(d=>{m[d]={};DAYS[d].exercises.forEach(e=>m[d][normName(e.name)]=e.id)});return m})();
 const DAY_MAP=(()=>{const m={};DAY_ORDER.forEach((d,i)=>{m[normName(DAYS[d].label)]=d;m[normName(DAYS[d].short)]=d;m["day"+(i+1)]=d});return m})();
 function csvRow(l){const o=[];let c="",q=false;for(let i=0;i<l.length;i++){const ch=l[i];
  if(ch==='"'){if(q&&l[i+1]==='"'){c+='"';i++}else q=!q}else if(ch===","&&!q){o.push(c.trim());c=""}else c+=ch}
@@ -1387,7 +1399,570 @@ async function triggerInstall(){
   deferredPrompt=null;installState();
 }
 
+/* ══════════════════════════════════════════════════════════
+   FORGE v2 — auto-logging, food library, energy balance,
+   editable program, muscle map, timer controls.
+   ══════════════════════════════════════════════════════════ */
+
+/* ---------- prefs (existing values always win) ---------- */
+DB.prefs=Object.assign({age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,
+  autoCarb:0,autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60},DB.prefs);
+
+const SEED_FOODS=[
+{label:"High-Protein Burrito (1)",cal:302,pro:29.6,carb:19,fat:9.6},
+{label:"Lean Beef Pasta Bake (1 serve)",cal:490,pro:55,carb:0,fat:0},
+{label:"Chicken Pasta Crockpot (1 serve)",cal:440,pro:43,carb:0,fat:0},
+{label:"Musashi P45 Protein Bar",cal:350,pro:45,carb:3,fat:14},
+{label:"Musashi Whey Shake (skim milk)",cal:275,pro:38,carb:9,fat:3},
+{label:"Pauls Plus Protein Pouch 150g",cal:92,pro:15,carb:8,fat:0.3},
+{label:"Rokeby Protein Smoothie 425ml",cal:286,pro:30.2,carb:27.2,fat:6.4},
+{label:"Woolworths Light Tasty Cheese & Crackers",cal:183,pro:12,carb:12,fat:9.7},
+{label:"Milo Pro (skim milk)",cal:180,pro:15,carb:25,fat:2},
+{label:"Coffee, skim milk + 1 sugar",cal:45,pro:3.5,carb:7,fat:0},
+{label:"Quest Protein Cookie",cal:250,pro:15,carb:22,fat:18},
+{label:"Woolworths Caesar Salad Kit",cal:180,pro:4,carb:8,fat:15},
+{label:"4 Scrambled Eggs",cal:280,pro:24,carb:2,fat:20},
+{label:"2 Slices Wholegrain Toast",cal:160,pro:6,carb:30,fat:2},
+{label:"Chobani No Fat Greek Yoghurt 170g",cal:100,pro:17,carb:7,fat:0},
+{label:"MMC Chicken & Leek Pasta Bake 370g",cal:621,pro:40.7,carb:54.8,fat:25.9},
+{label:"MMC Pesto Chicken Pasta 330g",cal:516,pro:41.9,carb:26.7,fat:25.4},
+{label:"MMC Asian Chicken Stir Fry 420g",cal:614,pro:55,carb:69.7,fat:11.3},
+{label:"MMC Lo-Cal Honey Soy Chicken & Rice 330g",cal:370,pro:23.8,carb:54.8,fat:5}];
+
+/* ---------- migrate old shapes, seed the food library ---------- */
+function v2migrate(){
+  DB.prefs=Object.assign({age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,
+    autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,goalWeight:85,kcalTarget:2200,
+    proteinTarget:200,stepGoal:5000,sound:true},DB.prefs);
+  DB.foods=DB.foods||[];
+  if(!DB.foods.length)DB.foods=SEED_FOODS.map((f,i)=>Object.assign({id:"f"+i},f));
+  DB.auto=DB.auto||{s:{},m:{}};
+  Object.keys(DB.macros||{}).forEach(d=>{
+    const m=DB.macros[d];
+    if(m&&!m.entries)DB.macros[d]={entries:(m.kcal||m.prot)?[{label:"Logged",cal:+m.kcal||0,pro:+m.prot||0,carb:0,fat:0}]:[]};
+  });
+  if(DB.program&&DB.program.days){DAYS=DB.program.days;DAY_ORDER=DB.program.order.filter(k=>DAYS[k]);}
+}
+function macTot(date){
+  const m=DB.macros[date];if(!m||!m.entries)return{cal:0,pro:0,carb:0,fat:0};
+  return m.entries.reduce((a,e)=>({cal:a.cal+(+e.cal||0),pro:a.pro+(+e.pro||0),carb:a.carb+(+e.carb||0),fat:a.fat+(+e.fat||0)}),{cal:0,pro:0,carb:0,fat:0});
+}
+function isAuto(kind,date){return !!(DB.auto&&DB.auto[kind]&&DB.auto[kind][date])}
+
+/* ---------- auto-record: writes real, editable entries ---------- */
+function firstDate(){
+  const all=[...allDates(),...DB.weight.map(w=>w.date),...Object.keys(DB.steps),...Object.keys(DB.macros)].filter(Boolean).sort();
+  return all.length?all[0]:today();
+}
+function runAutoLog(){
+  const AS=+DB.prefs.autoSteps||3000,AK=+DB.prefs.autoKcal||2200,AP=+DB.prefs.autoProt||200;
+  const end=today();let d=new Date(firstDate()+"T12:00"),guard=0;
+  while(dstr(d)<=end&&guard++<800){
+    const ds=dstr(d);
+    if(DB.steps[ds]==null||isNaN(DB.steps[ds])){DB.steps[ds]=AS;DB.auto.s[ds]=1}
+    const m=DB.macros[ds];
+    if(!m||!m.entries||!m.entries.length){
+      DB.macros[ds]={entries:[{label:"Estimated day",cal:AK,pro:AP,carb:+DB.prefs.autoCarb||0,fat:+DB.prefs.autoFat||0}]};
+      DB.auto.m[ds]=1;
+    }
+    d.setDate(d.getDate()+1);
+  }
+  save();
+}
+/* Once you log something real, the auto flag drops away */
+function clearAuto(kind,date){if(DB.auto&&DB.auto[kind])delete DB.auto[kind][date]}
+
+/* ---------- energy balance (Mifflin-St Jeor) ---------- */
+function bodyWeightOn(date){
+  let w=null;DB.weight.forEach(e=>{if(e.date<=date)w=e.kg});
+  if(w==null&&DB.weight.length)w=DB.weight[0].kg;
+  return w||100;
+}
+function trainedKcal(date){
+  let burn=0;
+  DAY_ORDER.forEach(d=>{const s=getSess(d,date);
+    if(s&&Object.keys(s).some(k=>!k.startsWith("_")&&(s[k]||[]).some(x=>x&&x.done)))burn=DB.prefs.trainBurn});
+  return burn;
+}
+function energyBalance(date){
+  const p=DB.prefs,kg=bodyWeightOn(date);
+  const bmr=Math.round(10*kg+6.25*p.height-5*p.age+(p.sex==="f"?-161:5));
+  const steps=DB.steps[date]||0;
+  const stepBurn=Math.round(steps*p.stepKcal);
+  const trainBurn=trainedKcal(date);
+  const out=bmr+stepBurn+trainBurn;
+  const t=macTot(date);
+  return{date,kg,bmr,steps,stepBurn,trainBurn,out,in:Math.round(t.cal),pro:Math.round(t.pro),
+    carb:Math.round(t.carb),fat:Math.round(t.fat),bal:Math.round(t.cal-out),
+    est:isAuto("m",date)||isAuto("s",date)};
+}
+/* ══════════ MUSCLE MAP ══════════ */
+const EX_REGIONS={
+bench:["chest","tri","delt"],incline:["chest","delt","tri"],shoulder:["delt","tri"],
+facepull:["reardelt","upback"],pushdown:["tri"],lateral:["delt"],chestfly:["chest"],
+hang:["fore"],hang3:["fore"],squat:["quad","glute","abs"],lunge:["quad","glute"],
+rdl:["ham","glute","lowback"],pullthr:["glute","ham"],farmers:["fore","trap","abs"],
+crunch:["abs"],plank:["abs"],pullup:["lat","bi"],bbrow:["lat","upback","bi"],
+srow:["upback","lat","bi"],lmrow:["lat","upback"],curl:["bi"],shrug:["trap","fore"],
+wrist:["fore"],deadlift:["ham","glute","lowback","trap"],rackpull:["trap","lowback","glute"],
+hipthrust:["glute","ham"],calf4:["calf"],lmtwist:["oblique","abs"],hollow:["abs"]};
+const MUSCLE_FALLBACK={Chest:["chest"],Back:["lat","upback"],Shoulders:["delt"],Legs:["quad","ham","glute"],Arms:["bi","tri"],Core:["abs"],Grip:["fore"]};
+const REGION_NAME={chest:"Chest",delt:"Front delts",reardelt:"Rear delts",bi:"Biceps",tri:"Triceps",
+fore:"Forearms",abs:"Abs",oblique:"Obliques",trap:"Traps",lat:"Lats",upback:"Upper back",
+lowback:"Lower back",glute:"Glutes",quad:"Quads",ham:"Hamstrings",calf:"Calves"};
+
+function regionSets(){
+  const out={},wk=weekDates();
+  DAY_ORDER.forEach(dayId=>wk.forEach(date=>{
+    const s=getSess(dayId,date);if(!s)return;
+    (DAYS[dayId].exercises||[]).forEach(ex=>{
+      const n=(s[ex.id]||[]).filter(x=>x&&x.done).length;if(!n)return;
+      const regs=EX_REGIONS[ex.id]||MUSCLE_FALLBACK[ex.muscle]||[];
+      regs.forEach(r=>out[r]=(out[r]||0)+n);
+    });
+  }));
+  return out;
+}
+/* blue = untouched · green = light · red = hammered */
+function heatColor(n){
+  if(!n)return"#2b4a7a";
+  if(n<5)return"#2f9e63";
+  if(n<10)return"#a8c62c";
+  if(n<15)return"#e8a02a";
+  return"#e0453f";
+}
+const BODY={
+front:`<ellipse data-r="head" cx="100" cy="30" rx="19" ry="23"/>
+<rect x="90" y="50" width="20" height="12" rx="4" data-r="neck"/>
+<path data-r="trap" d="M78 62 L100 56 L122 62 L118 76 L82 76 Z"/>
+<ellipse data-r="delt" cx="63" cy="88" rx="16" ry="19"/><ellipse data-r="delt" cx="137" cy="88" rx="16" ry="19"/>
+<path data-r="chest" d="M80 78 Q100 74 100 76 L100 122 Q84 124 76 108 Z"/>
+<path data-r="chest" d="M120 78 Q100 74 100 76 L100 122 Q116 124 124 108 Z"/>
+<ellipse data-r="bi" cx="55" cy="128" rx="12" ry="24"/><ellipse data-r="bi" cx="145" cy="128" rx="12" ry="24"/>
+<ellipse data-r="fore" cx="47" cy="178" rx="11" ry="27"/><ellipse data-r="fore" cx="153" cy="178" rx="11" ry="27"/>
+<rect data-r="abs" x="87" y="126" width="26" height="72" rx="7"/>
+<path data-r="oblique" d="M78 128 Q72 158 82 194 L87 194 L87 128 Z"/>
+<path data-r="oblique" d="M122 128 Q128 158 118 194 L113 194 L113 128 Z"/>
+<path data-r="quad" d="M80 208 Q68 250 76 300 L96 300 Q98 250 97 208 Z"/>
+<path data-r="quad" d="M120 208 Q132 250 124 300 L104 300 Q102 250 103 208 Z"/>
+<ellipse data-r="calf" cx="85" cy="345" rx="12" ry="30"/><ellipse data-r="calf" cx="115" cy="345" rx="12" ry="30"/>`,
+back:`<ellipse data-r="head" cx="100" cy="30" rx="19" ry="23"/>
+<rect x="90" y="50" width="20" height="12" rx="4" data-r="neck"/>
+<path data-r="trap" d="M74 62 L100 56 L126 62 L118 112 L100 122 L82 112 Z"/>
+<ellipse data-r="reardelt" cx="62" cy="88" rx="16" ry="19"/><ellipse data-r="reardelt" cx="138" cy="88" rx="16" ry="19"/>
+<path data-r="lat" d="M78 92 Q62 122 74 152 L96 138 L96 100 Z"/>
+<path data-r="lat" d="M122 92 Q138 122 126 152 L104 138 L104 100 Z"/>
+<path data-r="upback" d="M82 112 L100 122 L118 112 L114 140 L86 140 Z"/>
+<ellipse data-r="tri" cx="55" cy="128" rx="12" ry="24"/><ellipse data-r="tri" cx="145" cy="128" rx="12" ry="24"/>
+<ellipse data-r="fore" cx="47" cy="178" rx="11" ry="27"/><ellipse data-r="fore" cx="153" cy="178" rx="11" ry="27"/>
+<rect data-r="lowback" x="86" y="142" width="28" height="52" rx="8"/>
+<path data-r="glute" d="M78 196 Q76 232 98 234 L98 196 Z"/><path data-r="glute" d="M122 196 Q124 232 102 234 L102 196 Z"/>
+<path data-r="ham" d="M80 238 Q70 270 78 300 L96 300 Q98 268 97 238 Z"/>
+<path data-r="ham" d="M120 238 Q130 270 122 300 L104 300 Q102 268 103 238 Z"/>
+<ellipse data-r="calf" cx="85" cy="345" rx="13" ry="32"/><ellipse data-r="calf" cx="115" cy="345" rx="13" ry="32"/>`,
+side:`<ellipse data-r="head" cx="96" cy="30" rx="20" ry="23"/>
+<rect x="90" y="50" width="18" height="12" rx="4" data-r="neck"/>
+<path data-r="trap" d="M92 60 L112 66 L114 92 L94 88 Z"/>
+<ellipse data-r="delt" cx="100" cy="92" rx="17" ry="18"/>
+<path data-r="chest" d="M84 82 Q76 100 82 118 L94 116 L94 84 Z"/>
+<path data-r="lat" d="M110 96 Q122 124 112 150 L100 142 L100 100 Z"/>
+<ellipse data-r="bi" cx="88" cy="130" rx="11" ry="23"/>
+<ellipse data-r="fore" cx="86" cy="178" rx="10" ry="26"/>
+<path data-r="oblique" d="M84 122 Q78 158 88 196 L100 194 L100 124 Z"/>
+<path data-r="lowback" d="M112 150 Q118 172 112 194 L102 194 L102 148 Z"/>
+<path data-r="glute" d="M110 196 Q128 214 112 238 L98 234 L98 196 Z"/>
+<path data-r="quad" d="M84 210 Q76 254 84 300 L100 300 Q100 252 98 210 Z"/>
+<path data-r="ham" d="M112 240 Q118 270 110 300 L100 300 Q100 268 100 240 Z"/>
+<ellipse data-r="calf" cx="102" cy="346" rx="14" ry="31"/>`};
+let BODY_VIEW="front";
+function setBodyView(v){BODY_VIEW=v;renderBodyMap()}
+function renderBodyMap(){
+  const el=$("bodymap");if(!el)return;
+  const sets=regionSets();
+  let svg=BODY[BODY_VIEW];
+  // inject attributes only — never a ">" — or the shape's own cx/cy fall outside the tag
+  svg=svg.replace(/data-r="(\w+)"/g,(m,r)=>{
+    if(r==="head"||r==="neck")return `fill="#1c2029" stroke="#2e3342" stroke-width="1.5"`;
+    const n=sets[r]||0;
+    return `fill="${heatColor(n)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}" aria-label="${REGION_NAME[r]||r}: ${n} sets"`;
+  });
+  const shown=Object.keys(sets).sort((a,b)=>sets[b]-sets[a]);
+  const legend=[["0","#2b4a7a","untouched"],["1–4","#2f9e63","light"],["5–9","#a8c62c","solid"],["10–14","#e8a02a","strong"],["15+","#e0453f","hammered"]];
+  el.innerHTML=`<div class="seg" style="margin-bottom:12px">
+      ${["front","back","side"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v[0].toUpperCase()+v.slice(1)}</button>`).join("")}
+    </div>
+    <svg viewBox="0 0 200 390" style="width:100%;max-height:340px;display:block" role="img" aria-label="Muscle heat map, ${BODY_VIEW} view">${svg}</svg>
+    <div class="row mt12" style="flex-wrap:wrap;gap:6px;justify-content:center">
+      ${legend.map(l=>`<span class="pill" style="border-color:${l[1]};color:${l[1]}">${l[0]} ${l[2]}</span>`).join("")}
+    </div>
+    <div class="tiny mt12">${shown.length?shown.slice(0,4).map(r=>`${REGION_NAME[r]||r} ${sets[r]}`).join(" · "):"No sets logged this week yet."}</div>`;
+}
+/* ══════════ FUEL v2: macros, food library, weight, steps, balance ══════════ */
+FUEL_TAB="macros";
+function fuelTab(t){FUEL_TAB=t;["macros","weight","steps","balance"].forEach(x=>{const b=$("ftab-"+x);if(b)b.classList.toggle("active",x===t)});renderFuel()}
+function renderFuel(){
+  const b=$("fuel-body"),t=today();
+  if(FUEL_TAB==="macros")b.innerHTML=viewMacros(t);
+  if(FUEL_TAB==="weight")b.innerHTML=viewWeight();
+  if(FUEL_TAB==="steps")b.innerHTML=viewSteps();
+  if(FUEL_TAB==="balance")b.innerHTML=viewBalance();
+}
+function viewMacros(t){
+  const tot=macTot(t),p=DB.prefs,m=DB.macros[t]||{entries:[]};
+  const auto=isAuto("m",t);
+  const rows=m.entries.map((e,i)=>`<div class="hist-row"><div style="flex:1;min-width:0">
+      <div class="hist-date" style="color:var(--text);font-weight:500">${esc(e.label||"Entry")}</div>
+      <div class="tiny">${Math.round(e.cal)} kcal · ${Math.round(e.pro)}P · ${Math.round(e.carb||0)}C · ${Math.round(e.fat||0)}F</div></div>
+      <button class="tool-btn" style="flex:0 0 auto;padding:6px 10px" onclick="delEntry('${t}',${i})">✕</button></div>`).join("");
+  return`${auto?`<div class="warm-card" style="margin:0 0 12px">
+      <div class="warm-title">Estimated day</div>
+      <div class="warm-desc">Auto-logged at ${p.autoKcal} kcal / ${p.autoProt}g protein. Add anything you actually ate and this estimate is replaced.</div></div>`:""}
+    <div class="ring-wrap">${ring(Math.round(tot.cal),p.kcalTarget,"#ff6b35","Calories","kcal")}${ring(Math.round(tot.pro),p.proteinTarget,"#e3ff3f","Protein","g")}</div>
+    <div class="grid2 mt12">
+      <div class="tile"><div class="tile-lbl">Carbs</div><div class="tile-val">${Math.round(tot.carb)}<span class="unit">g</span></div></div>
+      <div class="tile"><div class="tile-lbl">Fat</div><div class="tile-val">${Math.round(tot.fat)}<span class="unit">g</span></div></div>
+    </div>
+    <div class="sec-title mt16">Add food</div>
+    <button class="btn btn-volt btn-full" onclick="foodPicker()">🔍 From my foods (${DB.foods.length})</button>
+    <button class="btn btn-full mt8" onclick="customFood()">＋ New food or one-off</button>
+    <div class="sec-title mt16">Today${auto?" (estimated)":""}</div>
+    <div class="hist-list">${rows||`<div class="empty">Nothing logged yet.</div>`}</div>
+    <div class="sec-title mt16">This week</div>
+    <div class="hist-list">${weekDates().filter(d=>d<=today()).reverse().map(d=>{
+      const x=macTot(d),over=x.cal>DB.prefs.kcalTarget,a=isAuto("m",d);
+      return`<div class="hist-row" onclick="jumpDay('${d}')"><div class="hist-date">${d===today()?"Today":fmtDate(d)}${a?' <span class="tiny">est</span>':""}</div>
+        <div><span class="hist-val" style="color:${over?"var(--neg)":"var(--text)"}">${Math.round(x.cal)}</span><span class="hist-diff" style="color:var(--volt)">${Math.round(x.pro)}g P</span></div></div>`}).join("")}</div>`;
+}
+function jumpDay(d){EDIT_DAY=d;editDaySheet(d)}
+let EDIT_DAY=null;
+function editDaySheet(d){
+  const t=macTot(d),s=DB.steps[d]||0;
+  openSheet(`<div class="sheet-title">${fmtDate(d)}</div>
+    <div class="subtle mb12">Edit anything recorded on this day.</div>
+    <div class="sets-hdr"><span>Steps</span><span>kcal</span><span>Protein</span><span></span></div>
+    <div class="set-row">
+      <input class="inp" id="ed-steps" type="number" inputmode="numeric" value="${s}">
+      <input class="inp" id="ed-cal" type="number" inputmode="numeric" value="${Math.round(t.cal)}">
+      <input class="inp" id="ed-pro" type="number" inputmode="numeric" value="${Math.round(t.pro)}">
+      <button class="set-go on" onclick="saveDayEdit('${d}')">✓</button></div>
+    <div class="tiny mt12">Saving replaces that day's totals with a single edited entry.</div>
+    <button class="btn btn-full mt16" onclick="closeSheet()">Cancel</button>`);
+}
+function saveDayEdit(d){
+  const st=+$("ed-steps").value||0,c=+$("ed-cal").value||0,p=+$("ed-pro").value||0;
+  DB.steps[d]=st;clearAuto("s",d);
+  DB.macros[d]={entries:[{label:"Edited",cal:c,pro:p,carb:0,fat:0}]};clearAuto("m",d);
+  save();closeSheet();renderFuel();toast("Day updated");
+}
+function delEntry(d,i){
+  const m=DB.macros[d];if(!m)return;m.entries.splice(i,1);clearAuto("m",d);save();renderFuel();
+}
+function addEntry(f){
+  const t=today();
+  if(isAuto("m",t)){DB.macros[t]={entries:[]};clearAuto("m",t)}
+  DB.macros[t]=DB.macros[t]||{entries:[]};
+  DB.macros[t].entries.push({label:f.label,cal:+f.cal||0,pro:+f.pro||0,carb:+f.carb||0,fat:+f.fat||0});
+  save();closeSheet();renderFuel();haptic(15);toast(`${f.label} added`);
+}
+function foodPicker(q){
+  const list=DB.foods.filter(f=>!q||f.label.toLowerCase().includes(q.toLowerCase()));
+  openSheet(`<div class="sheet-title">My foods</div>
+    <input class="qa-inp" id="food-q" placeholder="Search…" style="text-align:left" oninput="foodPicker(this.value)" value="${esc(q||"")}">
+    <div class="hist-list mt12" style="max-height:46vh;overflow-y:auto">
+      ${list.length?list.map(f=>`<div class="hist-row" onclick='addEntry(${JSON.stringify(f).replace(/'/g,"&#39;")})'>
+        <div style="flex:1;min-width:0"><div class="hist-date" style="color:var(--text);font-weight:500">${esc(f.label)}</div>
+        <div class="tiny">${f.cal} kcal · ${f.pro}P · ${f.carb||0}C · ${f.fat||0}F</div></div>
+        <button class="tool-btn" style="flex:0 0 auto;padding:6px 10px" onclick="event.stopPropagation();delFood('${f.id}')">✕</button></div>`).join(""):`<div class="empty">No match.</div>`}
+    </div>
+    <button class="btn btn-full mt12" onclick="closeSheet()">Close</button>`);
+  const i=$("food-q");if(i&&q!==undefined){i.focus();i.setSelectionRange(i.value.length,i.value.length)}
+}
+function delFood(id){DB.foods=DB.foods.filter(f=>f.id!==id);save();foodPicker($("food-q")?$("food-q").value:"")}
+function customFood(){
+  openSheet(`<div class="sheet-title">New food</div>
+    <input class="qa-inp mb8" id="nf-l" placeholder="Name" style="text-align:left">
+    <div class="quick-add"><input class="qa-inp" id="nf-c" type="number" inputmode="decimal" placeholder="kcal"><input class="qa-inp" id="nf-p" type="number" inputmode="decimal" placeholder="protein g"></div>
+    <div class="quick-add mt8"><input class="qa-inp" id="nf-cb" type="number" inputmode="decimal" placeholder="carbs g"><input class="qa-inp" id="nf-f" type="number" inputmode="decimal" placeholder="fat g"></div>
+    <button class="btn btn-volt btn-full mt16" onclick="saveFood(true)">Add &amp; save to my foods</button>
+    <button class="btn btn-full mt8" onclick="saveFood(false)">Add just this once</button>
+    <button class="btn btn-ghost btn-full mt8" onclick="closeSheet()">Cancel</button>`);
+}
+function saveFood(keep){
+  const f={label:$("nf-l").value.trim()||"Food",cal:+$("nf-c").value||0,pro:+$("nf-p").value||0,carb:+$("nf-cb").value||0,fat:+$("nf-f").value||0};
+  if(keep){f.id="f"+Date.now();DB.foods.push(f);DB.foods.sort((a,b)=>a.label.localeCompare(b.label))}
+  addEntry(f);
+}
+function viewWeight(){
+  const wl=DB.weight,latest=wl[wl.length-1];
+  return`<div class="quick-add"><input class="qa-inp" id="qa-weight" type="number" inputmode="decimal" step="0.1" placeholder="${latest?latest.kg:"kg today"}"><button class="btn btn-volt" onclick="addWeight()">Log</button></div>
+    <div class="chart-card mt12">${bwChart()}</div>
+    <div class="sec-title">History · tap to edit</div>
+    <div class="hist-list">${wl.slice(-14).reverse().map((e,i,arr)=>{const nxt=arr[i+1],diff=nxt?+(e.kg-nxt.kg).toFixed(1):null;
+      return`<div class="hist-row" onclick="editWeight('${e.date}')"><div class="hist-date">${fmtDate(e.date)}</div>
+        <div><span class="hist-val">${e.kg} kg</span>${diff!==null?`<span class="hist-diff" style="color:${diff<0?"var(--pos)":diff>0?"var(--neg)":"var(--dim)"}">${diff>0?"+":""}${diff}</span>`:""}</div></div>`}).join("")
+      ||`<div class="empty">Weigh in each morning — trends beat single readings.</div>`}</div>`;
+}
+function editWeight(date){
+  const e=DB.weight.find(x=>x.date===date);if(!e)return;
+  openSheet(`<div class="sheet-title">${fmtDate(date)}</div>
+    <div class="quick-add"><input class="qa-inp" id="ew-kg" type="number" inputmode="decimal" step="0.1" value="${e.kg}"><button class="btn btn-volt" onclick="saveWeightEdit('${date}')">Save</button></div>
+    <button class="btn btn-full mt12" onclick="delWeight('${date}')">Delete this weigh-in</button>
+    <button class="btn btn-ghost btn-full mt8" onclick="closeSheet()">Cancel</button>`);
+}
+function saveWeightEdit(date){
+  const v=+$("ew-kg").value;if(!v||v<30||v>300){toast("Enter a weight in kg");return}
+  const e=DB.weight.find(x=>x.date===date);e.kg=v;save();closeSheet();renderFuel();toast("Updated");
+}
+function delWeight(date){DB.weight=DB.weight.filter(x=>x.date!==date);save();closeSheet();renderFuel();toast("Deleted")}
+function viewSteps(){
+  const t=today(),s=DB.steps[t]||0,goal=DB.prefs.stepGoal,wk=weekDates();
+  const max=Math.max(goal,...wk.map(d=>DB.steps[d]||0));
+  const bars=wk.map(d=>{const v=DB.steps[d]||0,h=Math.round(v/max*70)||2,fut=d>t;
+    return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;${fut?"opacity:.35":""}" onclick="${fut?"":`editSteps('${d}')`}">
+      <div style="width:100%;height:78px;display:flex;align-items:flex-end"><div style="width:100%;border-radius:5px 5px 2px 2px;height:${h}px;background:${v>=goal?"var(--volt)":isAuto("s",d)?"#3a4050":"var(--panel3)"}"></div></div>
+      <div class="tiny mono">${"MTWTFSS"[(new Date(d+"T12:00").getDay()+6)%7]}</div></div>`}).join("");
+  return`${isAuto("s",t)?`<div class="warm-card" style="margin:0 0 12px"><div class="warm-title">Estimated</div><div class="warm-desc">Auto-logged at ${DB.prefs.autoSteps} steps. Tap any bar to correct it.</div></div>`:""}
+    <div class="ring-wrap">${ring(s,goal,"#3bc7f3","Steps today","")}</div>
+    <div class="quick-add"><input class="qa-inp" id="qa-steps" type="number" inputmode="numeric" placeholder="steps today"><button class="btn btn-volt" onclick="addSteps()">Log</button></div>
+    <div class="sec-title mt16">This week · tap a bar to edit</div>
+    <div class="card"><div style="display:flex;gap:6px">${bars}</div>
+    <div class="tiny mt12">${wk.filter(d=>d<=t&&(DB.steps[d]||0)>=goal).length} days hit your ${goal.toLocaleString()}-step goal. Grey bars are estimates.</div></div>`;
+}
+function editSteps(d){
+  openSheet(`<div class="sheet-title">${fmtDate(d)} steps</div>
+    <div class="quick-add"><input class="qa-inp" id="es-n" type="number" inputmode="numeric" value="${DB.steps[d]||0}"><button class="btn btn-volt" onclick="saveSteps('${d}')">Save</button></div>
+    <button class="btn btn-ghost btn-full mt12" onclick="closeSheet()">Cancel</button>`);
+}
+function saveSteps(d){DB.steps[d]=+$("es-n").value||0;clearAuto("s",d);save();closeSheet();renderFuel();toast("Steps updated")}
+function addSteps(){const v=+$("qa-steps").value;if(!v)return;DB.steps[today()]=v;clearAuto("s",today());save();renderFuel();toast("Steps logged")}
+function addWeight(){const v=+$("qa-weight").value;if(!v||v<30||v>300){toast("Enter a weight in kg");return}
+  const t=today(),i=DB.weight.findIndex(e=>e.date===t);
+  if(i>=0)DB.weight[i].kg=v;else DB.weight.push({date:t,kg:v});
+  DB.weight.sort((a,b)=>a.date<b.date?-1:1);save();renderFuel();toast("Weigh-in logged")}
+function viewBalance(){
+  const days=weekDates().filter(d=>d<=today()).reverse().map(energyBalance);
+  const e=days[0];if(!e)return`<div class="empty">No data yet.</div>`;
+  const wkBal=days.reduce((a,x)=>a+x.bal,0);
+  const kgPace=(wkBal/7700*7/days.length).toFixed(2);
+  return`<div class="card mb12">
+      <div class="chart-kick">Today · ${e.est?"partly estimated":"fully logged"}</div>
+      <div class="num-lg mt8" style="color:${e.bal<0?"var(--pos)":"var(--neg)"}">${e.bal>0?"+":""}${e.bal} kcal</div>
+      <div class="subtle mt8">${e.bal<0?`Deficit — on track to lose weight`:`Surplus — you'd gain at this rate`}</div>
+      <div class="kpi3 mt12">
+        <div class="kpi"><div class="kpi-l">In</div><div class="kpi-v">${e.in}</div></div>
+        <div class="kpi"><div class="kpi-l">Out</div><div class="kpi-v">${e.out}</div></div>
+        <div class="kpi"><div class="kpi-l">Protein</div><div class="kpi-v">${e.pro}<small>g</small></div></div></div>
+      <div class="tiny mt12">BMR ${e.bmr} + steps ${e.stepBurn}${e.trainBurn?` + training ${e.trainBurn}`:""} = ${e.out} kcal burned. Based on ${e.kg} kg, ${DB.prefs.age}y, ${DB.prefs.height} cm.</div>
+    </div>
+    <div class="card mb12"><div class="chart-kick">This week so far</div>
+      <div class="num-lg mt8" style="color:${wkBal<0?"var(--pos)":"var(--neg)"}">${wkBal>0?"+":""}${wkBal.toLocaleString()} kcal</div>
+      <div class="subtle mt8">≈ <b style="color:var(--volt)">${kgPace} kg</b> per week at this pace</div></div>
+    <div class="sec-title">Daily breakdown</div>
+    <div class="hist-list">${days.map(d=>`<div class="hist-row" onclick="jumpDay('${d.date}')">
+      <div><div class="hist-date">${d.date===today()?"Today":fmtDate(d.date)}${d.est?' <span class="tiny">est</span>':""}</div>
+      <div class="tiny">${d.in} in · ${d.out} out${d.trainBurn?" · trained":""}</div></div>
+      <div class="hist-val" style="color:${d.bal<0?"var(--pos)":"var(--neg)"}">${d.bal>0?"+":""}${d.bal}</div></div>`).join("")}</div>
+    <div class="tiny mt12">7,700 kcal ≈ 1 kg. Estimated days assume ${DB.prefs.autoKcal} kcal and ${DB.prefs.autoSteps} steps — correct them for a truer picture.</div>`;
+}
+/* ══════════ PROGRAM EDITOR ══════════ */
+function saveProgram(){DB.program={days:DAYS,order:DAY_ORDER};save();rebuildMaps()}
+function rebuildMaps(){
+  try{
+    for(const k in EX_MAP)delete EX_MAP[k];
+    DAY_ORDER.forEach(d=>{EX_MAP[d]={};(DAYS[d].exercises||[]).forEach(e=>EX_MAP[d][normName(e.name)]=e.id)});
+    for(const k in DAY_MAP)delete DAY_MAP[k];
+    DAY_ORDER.forEach((d,i)=>{DAY_MAP[normName(DAYS[d].label)]=d;DAY_MAP[normName(DAYS[d].short)]=d;DAY_MAP["day"+(i+1)]=d});
+  }catch(e){}
+}
+function renderEditor(){
+  $("editor-body").innerHTML=DAY_ORDER.map(id=>{
+    const d=DAYS[id];
+    return`<div class="card mb12">
+      <div class="spread"><div style="flex:1;min-width:0">
+        <div class="day-kicker">${esc(d.label)}</div>
+        <div class="day-name">${esc(d.short)}</div>
+        <div class="tiny mt8">${(d.exercises||[]).length} exercises · ${esc(d.sub||"")}</div></div>
+        <button class="tool-btn" style="flex:0 0 auto" onclick="editDayMeta('${id}')">Rename</button></div>
+      <div class="mt12">${(d.exercises||[]).map((ex,i)=>`<div class="hist-row" style="padding:9px 0">
+        <div style="flex:1;min-width:0" onclick="editEx('${id}',${i})">
+          <div style="font-size:13px;font-weight:500">${esc(ex.name)}</div>
+          <div class="tiny">${ex.sets}×${esc(ex.reps)} · ${esc(ex.muscle)} · ${ex.type}</div></div>
+        <div class="row" style="gap:4px;flex:0 0 auto">
+          <button class="tool-btn" style="padding:6px 9px" onclick="moveEx('${id}',${i},-1)">↑</button>
+          <button class="tool-btn" style="padding:6px 9px" onclick="moveEx('${id}',${i},1)">↓</button>
+          <button class="tool-btn" style="padding:6px 9px" onclick="delEx('${id}',${i})">✕</button></div></div>`).join("")}</div>
+      <button class="btn btn-full mt12" onclick="editEx('${id}',-1)">＋ Add exercise</button>
+      ${DAY_ORDER.length>1?`<button class="btn btn-ghost btn-full mt8" onclick="delDay('${id}')">Delete this day</button>`:""}
+    </div>`;
+  }).join("")+`<button class="btn btn-volt btn-full mt8" onclick="addDay()">＋ Add a training day</button>
+    <button class="btn btn-full mt8" onclick="resetProgram()">↺ Reset to the original 4-day split</button>
+    <div class="tiny mt12">Your logged history is kept even if you rename or remove exercises — it just stops appearing in charts for anything deleted.</div>`;
+}
+function editDayMeta(id){
+  const d=DAYS[id];
+  openSheet(`<div class="sheet-title">Edit day</div>
+    <input class="qa-inp mb8" id="dm-label" style="text-align:left" value="${esc(d.label)}" placeholder="Full name, e.g. Day 1 · Push">
+    <input class="qa-inp mb8" id="dm-short" style="text-align:left" value="${esc(d.short)}" placeholder="Short name, e.g. PUSH">
+    <input class="qa-inp mb8" id="dm-sub" style="text-align:left" value="${esc(d.sub||"")}" placeholder="Muscles, e.g. Chest · Shoulders">
+    <button class="btn btn-volt btn-full mt8" onclick="saveDayMeta('${id}')">Save</button>
+    <button class="btn btn-ghost btn-full mt8" onclick="closeSheet()">Cancel</button>`);
+}
+function saveDayMeta(id){
+  const d=DAYS[id];
+  d.label=$("dm-label").value.trim()||d.label;
+  d.short=($("dm-short").value.trim()||d.short).toUpperCase();
+  d.sub=$("dm-sub").value.trim();
+  saveProgram();closeSheet();renderEditor();toast("Day updated");
+}
+function addDay(){
+  const n=DAY_ORDER.length+1,id="cday"+Date.now();
+  DAYS[id]={label:"Day "+n+" · New",short:"DAY "+n,sub:"Tap Rename to set this up",dur:"~50 min",exercises:[]};
+  DAY_ORDER.push(id);saveProgram();renderEditor();toast("Day added — now add exercises");
+}
+function delDay(id){
+  if(!confirm("Delete this day? Logged sessions stay in your data but disappear from the app."))return;
+  delete DAYS[id];DAY_ORDER=DAY_ORDER.filter(x=>x!==id);saveProgram();renderEditor();toast("Day removed");
+}
+function resetProgram(){
+  if(!confirm("Reset the program back to the original 4-day split? Your logged history is not touched."))return;
+  DAYS=JSON.parse(JSON.stringify(DEFAULT_DAYS));DAY_ORDER=DEFAULT_ORDER.slice();
+  DB.program=null;save();rebuildMaps();renderEditor();toast("Program reset");
+}
+function moveEx(dayId,i,dir){
+  const a=DAYS[dayId].exercises,j=i+dir;if(j<0||j>=a.length)return;
+  const t=a[i];a[i]=a[j];a[j]=t;saveProgram();renderEditor();
+}
+function delEx(dayId,i){
+  if(!confirm("Remove "+DAYS[dayId].exercises[i].name+" from this day?"))return;
+  DAYS[dayId].exercises.splice(i,1);saveProgram();renderEditor();
+}
+function editEx(dayId,i){
+  const isNew=i<0;
+  const ex=isNew?{name:"",type:"compound",sets:3,reps:"8–12",muscle:"Chest",equip:""}:DAYS[dayId].exercises[i];
+  const muscles=["Chest","Back","Shoulders","Legs","Arms","Core","Grip"];
+  openSheet(`<div class="sheet-title">${isNew?"Add exercise":"Edit exercise"}</div>
+    <input class="qa-inp mb8" id="ee-name" style="text-align:left" value="${esc(ex.name)}" placeholder="Exercise name">
+    <div class="quick-add mb8"><input class="qa-inp" id="ee-sets" type="number" inputmode="numeric" value="${ex.sets}" placeholder="sets"><input class="qa-inp" id="ee-reps" value="${esc(ex.reps)}" placeholder="reps e.g. 8–12"></div>
+    <select class="select" id="ee-type">${["compound","isolation","finisher"].map(t=>`<option value="${t}" ${t===ex.type?"selected":""}>${TYPE_META[t].l} · ${TYPE_META[t].restLbl}</option>`).join("")}</select>
+    <select class="select" id="ee-muscle">${muscles.map(m=>`<option ${m===ex.muscle?"selected":""}>${m}</option>`).join("")}</select>
+    <input class="qa-inp mb8" id="ee-equip" style="text-align:left" value="${esc(ex.equip||"")}" placeholder="Equipment / setup note">
+    <button class="btn btn-volt btn-full mt8" onclick="saveEx('${dayId}',${i})">Save</button>
+    <button class="btn btn-ghost btn-full mt8" onclick="closeSheet()">Cancel</button>`);
+}
+function saveEx(dayId,i){
+  const name=$("ee-name").value.trim();if(!name){toast("Give it a name");return}
+  const o={name,sets:Math.max(1,+$("ee-sets").value||3),reps:$("ee-reps").value.trim()||"8–12",
+    type:$("ee-type").value,muscle:$("ee-muscle").value,equip:$("ee-equip").value.trim()};
+  if(i<0){o.id="x"+Date.now();DAYS[dayId].exercises.push(o)}
+  else{o.id=DAYS[dayId].exercises[i].id;o.timed=DAYS[dayId].exercises[i].timed;o.carry=DAYS[dayId].exercises[i].carry;DAYS[dayId].exercises[i]=o}
+  saveProgram();closeSheet();renderEditor();toast("Saved");
+}
+
+/* ══════════ WORKOUT EXTRAS: rest controls + always-visible autofill ══════════ */
+const _buildWorkout=buildWorkout;
+buildWorkout=function(){
+  _buildWorkout();
+  const dayId=WO.dayId,lastDate=lastSessionBefore(dayId,WO.date);
+  (DAYS[dayId].exercises||[]).forEach(ex=>{
+    const tools=document.querySelector("#body-"+ex.id+" .ex-tools");if(!tools)return;
+    if(!tools.innerHTML.includes("Repeat last")){
+      const b=document.createElement("button");
+      b.className="tool-btn";b.textContent="↺ Repeat last";
+      const has=lastDate&&(getSess(dayId,lastDate)||{})[ex.id];
+      if(!has){b.style.opacity=".45"}
+      b.onclick=()=>has?autofill(ex.id):toast("No previous session for this exercise yet");
+      tools.appendChild(b);
+    }
+    const r=document.createElement("button");
+    r.className="tool-btn";r.textContent="⏱ Rest";
+    r.onclick=()=>startRest(ex);
+    tools.appendChild(r);
+  });
+};
+/* manual rest controls */
+function restSub(n){REST.left=Math.max(1,REST.left-n)}
+/* ══════════ PROGRESS: inject muscle map ══════════ */
+const _renderProgress=renderProgress;
+renderProgress=function(){
+  _renderProgress();
+  const host=$("vol-by-muscle");
+  if(host&&!$("bodymap")){
+    const block=document.createElement("div");
+    block.className="mt16";
+    block.innerHTML=`<div class="sec-title">Muscle map · this week</div><div class="card" id="bodymap"></div>`;
+    const section=host.parentNode;                 // the .mt16 wrapper around the volume bars
+    section.parentNode.insertBefore(block,section);
+  }
+  renderBodyMap();
+};
+
+/* ══════════ SETTINGS additions ══════════ */
+const _renderMore=renderMore;
+renderMore=function(){
+  _renderMore();
+  const host=$("scr-more").querySelector(".wrap");
+  if(host&&!$("v2-settings")){
+    const d=document.createElement("div");
+    d.id="v2-settings";
+    d.innerHTML=`<div class="sec-title mt16">Your program</div>
+      <div class="card"><div class="set-item" onclick="go('editor')"><div><div class="set-item-l">Edit exercises &amp; days</div><div class="set-item-d">Rename, reorder, add or remove anything</div></div><div class="set-item-r">›</div></div></div>
+      <div class="sec-title mt16">Auto-logging</div>
+      <div class="card">
+        <div class="set-item" onclick="editPref('autoSteps','Steps assumed on unlogged days')"><div><div class="set-item-l">Assumed daily steps</div><div class="set-item-d">Written automatically, editable any time</div></div><div class="set-item-r" id="s-asteps">—</div></div>
+        <div class="set-item" onclick="editPref('autoKcal','Calories assumed on unlogged days')"><div><div class="set-item-l">Assumed daily calories</div><div class="set-item-d">Replaced as soon as you log real food</div></div><div class="set-item-r" id="s-akcal">—</div></div>
+        <div class="set-item" onclick="editPref('autoProt','Protein assumed on unlogged days (g)')"><div><div class="set-item-l">Assumed daily protein</div><div class="set-item-d">Used for the estimate only</div></div><div class="set-item-r" id="s-aprot">—</div></div>
+      </div>
+      <div class="sec-title mt16">Body &amp; burn</div>
+      <div class="card">
+        <div class="set-item" onclick="editPref('age','Your age (years)')"><div><div class="set-item-l">Age</div><div class="set-item-d">For the BMR calculation</div></div><div class="set-item-r" id="s-age">—</div></div>
+        <div class="set-item" onclick="editPref('height','Your height (cm)')"><div><div class="set-item-l">Height</div><div class="set-item-d">For the BMR calculation</div></div><div class="set-item-r" id="s-height">—</div></div>
+        <div class="set-item" onclick="editPref('trainBurn','Calories burned per session')"><div><div class="set-item-l">Session burn</div><div class="set-item-d">Added on days you train</div></div><div class="set-item-r" id="s-burn">—</div></div>
+      </div>
+      <div class="sec-title mt16">Rest timers</div>
+      <div class="card">
+        <div class="set-item" onclick="editPref('restC','Rest after compound sets (seconds)')"><div><div class="set-item-l">Compound rest</div></div><div class="set-item-r" id="s-restc">—</div></div>
+        <div class="set-item" onclick="editPref('restI','Rest after isolation sets (seconds)')"><div><div class="set-item-l">Isolation rest</div></div><div class="set-item-r" id="s-resti">—</div></div>
+        <div class="set-item" onclick="editPref('restF','Rest after finisher sets (seconds)')"><div><div class="set-item-l">Finisher rest</div></div><div class="set-item-r" id="s-restf">—</div></div>
+      </div>`;
+    host.appendChild(d);
+  }
+  const set=(id,v)=>{const el=$(id);if(el)el.textContent=v};
+  set("s-asteps",DB.prefs.autoSteps);set("s-akcal",DB.prefs.autoKcal);set("s-aprot",DB.prefs.autoProt+" g");
+  set("s-age",DB.prefs.age);set("s-height",DB.prefs.height+" cm");set("s-burn",DB.prefs.trainBurn+" kcal");
+  set("s-restc",DB.prefs.restC+"s");set("s-resti",DB.prefs.restI+"s");set("s-restf",DB.prefs.restF+"s");
+};
+/* rest durations follow settings */
+const _startRest=startRest;
+startRest=function(ex){
+  TYPE_META.compound.rest=DB.prefs.restC;TYPE_META.isolation.rest=DB.prefs.restI;TYPE_META.finisher.rest=DB.prefs.restF;
+  _startRest(ex);
+};
+
+/* ══════════ SUPERSET EXPLAINER ══════════ */
+function ssHelp(){
+  openSheet(`<div class="sheet-title">What SS·A and SS·B mean</div>
+    <div class="subtle" style="line-height:1.7;font-size:13.5px">
+      They mark a <b style="color:var(--text)">superset</b> — two exercises done back to back.<br><br>
+      Do all reps of the <b style="color:var(--sky)">A</b> exercise, go straight to its <b style="color:var(--sky)">B</b> partner with no rest, then rest once before repeating.<br><br>
+      They're paired so the two don't compete: while your chest works on bench (A), your rear delts do face pulls (B). It roughly halves your time in the gym without costing you anything.
+    </div>
+    <button class="btn btn-volt btn-full mt16" onclick="closeSheet()">Got it</button>`);
+}
+
+/* ══════════ INIT v2 ══════════ */
+function initV2(){
+  v2migrate();
+  runAutoLog();
+  rebuildMaps();
+  // keep auto-logging current if the app is left open past midnight
+  setInterval(()=>{const t=today();if(DB.steps[t]==null||!DB.macros[t]){runAutoLog()}},60000);
+}
+
+const _doImport=doImport;
+doImport=function(replace){_doImport(replace);v2migrate();runAutoLog();rebuildMaps();};
+
 /* ---------- INIT ---------- */
+initV2();
 renderHome();
 </script>
 </body>
