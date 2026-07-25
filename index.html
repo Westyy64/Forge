@@ -381,7 +381,7 @@ a{color:var(--sky);text-decoration:none}
       <div class="chart-card" id="lift-chart-card"></div>
     </div>
     <div class="mt16">
-      <div class="sec-title">This week's volume by muscle</div>
+      <div class="sec-title">Tonnage · last 8 weeks</div>
       <div class="card" id="vol-by-muscle"></div>
     </div>
     <div class="mt16 mb16">
@@ -568,7 +568,8 @@ let DB=load();
 function blank(){return{prefs:{goalWeight:85,kcalTarget:2200,proteinTarget:200,stepGoal:5000,sound:true,age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60},sessions:{},weight:[],steps:{},macros:{},prs:[]}}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.prefs)return Object.assign(blank(),d)}catch(e){}return blank()}
 let saveT=null;
-function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast("⚠️ Save failed — storage full?")}},250)}
+let DB_REV=0;
+function save(){DB_REV++;clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast("⚠️ Save failed — storage full?")}},250)}
 
 /* ---------- UTILS ---------- */
 const $=id=>document.getElementById(id);
@@ -634,9 +635,19 @@ function weeklyStreak(){
   }
   return streak;
 }
-function tonnage7d(){
-  const wk=weekDates();let t=0;
-  DAY_ORDER.forEach(d=>{wk.forEach(date=>{const s=getSess(d,date);if(!s)return;Object.keys(s).forEach(k=>{if(k.startsWith("_"))return;(s[k]||[]).forEach(x=>{if(setDone(x)&&x.w&&x.r)t+=x.w*x.r})})})});
+/* Carries log metres and holds log seconds in the reps column — multiplying
+   those by kilos isn't weight lifted, so they're left out of tonnage. */
+function setTonnage(ex,x){
+  if(!x||!x.w||!x.r||!setDone(x))return 0;
+  if(ex&&(ex.timed||ex.carry))return 0;
+  return (+x.w)*(+x.r);
+}
+function tonnage7d(off){
+  const wk=weekDates(off||0);let t=0;
+  DAY_ORDER.forEach(d=>wk.forEach(date=>{
+    const s=getSess(d,date);if(!s)return;
+    (DAYS[d].exercises||[]).forEach(ex=>(s[ex.id]||[]).forEach(x=>t+=setTonnage(ex,x)));
+  }));
   return Math.round(t);
 }
 function renderHome(){
@@ -1121,48 +1132,10 @@ function renderPlates(){
 }
 
 /* ---------- FUEL ---------- */
-let FUEL_TAB="macros";
-function fuelTab(t){FUEL_TAB=t;["macros","weight","steps"].forEach(x=>$("ftab-"+x).classList.toggle("active",x===t));renderFuel()}
 function ring(val,max,color,label,unit){
   const pct=Math.min(val/max,1),C=2*Math.PI*44;
   return`<div class="ring-card"><div class="ring-box"><svg viewBox="0 0 104 104" width="104" height="104"><circle cx="52" cy="52" r="44" fill="none" stroke="#232733" stroke-width="8"/><circle cx="52" cy="52" r="44" fill="none" stroke="${color}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-pct)}"/></svg><div class="ring-val">${val.toLocaleString()}<small>/ ${max.toLocaleString()} ${unit}</small></div></div><div class="tiny mt8">${label}</div></div>`;
 }
-function renderFuel(){
-  const b=$("fuel-body"),t=today();
-  if(FUEL_TAB==="macros"){
-    const m=DB.macros[t]||{kcal:0,prot:0};
-    b.innerHTML=`<div class="ring-wrap">${ring(m.kcal,DB.prefs.kcalTarget,"#ff6b35","Calories today","kcal")}${ring(m.prot,DB.prefs.proteinTarget,"#e3ff3f","Protein today","g")}</div>
-      <div class="sec-title mt16">Quick add</div>
-      <div class="quick-add"><input class="qa-inp" id="qa-kcal" type="number" inputmode="numeric" placeholder="kcal"><input class="qa-inp" id="qa-prot" type="number" inputmode="numeric" placeholder="protein g"><button class="btn btn-volt" onclick="addMacros()">Add</button></div>
-      <div class="chip-row">
-        <button class="chip-btn" onclick="quickMac(400,40)">🍗 Meal 400/40</button>
-        <button class="chip-btn" onclick="quickMac(250,30)">🥤 Shake 250/30</button>
-        <button class="chip-btn" onclick="quickMac(150,3)">🍎 Snack 150/3</button>
-        <button class="chip-btn" onclick="undoMac()">↺ Undo last</button>
-      </div>
-      <div class="sec-title mt16">This week</div><div class="hist-list">${weekDates().filter(d=>d<=t).reverse().map(d=>{const x=DB.macros[d]||{kcal:0,prot:0};const over=x.kcal>DB.prefs.kcalTarget;return`<div class="hist-row"><div class="hist-date">${d===t?"Today":fmtDate(d)}</div><div><span class="hist-val" style="color:${over?"var(--neg)":"var(--text)"}">${x.kcal}</span><span class="hist-diff" style="color:var(--volt)">${x.prot}g P</span></div></div>`}).join("")}</div>`;
-  }
-  if(FUEL_TAB==="weight"){
-    const wl=DB.weight,latest=wl[wl.length-1];
-    b.innerHTML=`<div class="quick-add"><input class="qa-inp" id="qa-weight" type="number" inputmode="decimal" step="0.1" placeholder="${latest?latest.kg:"kg today"}"><button class="btn btn-volt" onclick="addWeight()">Log weigh-in</button></div>
-      <div class="chart-card mt12" id="bw-chart">${bwChart()}</div>
-      <div class="hist-list">${wl.slice(-10).reverse().map((e,i,arr)=>{const nxt=arr[i+1];const diff=nxt?+(e.kg-nxt.kg).toFixed(1):null;return`<div class="hist-row"><div class="hist-date">${fmtDate(e.date)}</div><div><span class="hist-val">${e.kg} kg</span>${diff!==null?`<span class="hist-diff" style="color:${diff<0?"var(--pos)":diff>0?"var(--neg)":"var(--dim)"}">${diff>0?"+":""}${diff}</span>`:""}</div></div>`}).join("")||`<div class="empty">Weigh in each morning — trends beat single readings.</div>`}</div>`;
-  }
-  if(FUEL_TAB==="steps"){
-    const s=DB.steps[t]||0,goal=DB.prefs.stepGoal;
-    const wk=weekDates();const max=Math.max(goal,...wk.map(d=>DB.steps[d]||0));
-    const bars=wk.map(d=>{const v=DB.steps[d]||0;const h=Math.round(v/max*70)||2;return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px"><div style="width:100%;height:78px;display:flex;align-items:flex-end"><div style="width:100%;border-radius:5px 5px 2px 2px;height:${h}px;background:${v>=goal?"var(--volt)":"var(--panel3)"}"></div></div><div class="tiny mono" style="${d>today()?"opacity:.4":""}">${"MTWTFSS"[(new Date(d+"T12:00").getDay()+6)%7]}</div></div>`}).join("");
-    b.innerHTML=`<div class="ring-wrap">${ring(s,goal,"#3bc7f3","Steps today","")}</div>
-      <div class="quick-add"><input class="qa-inp" id="qa-steps" type="number" inputmode="numeric" placeholder="steps today"><button class="btn btn-volt" onclick="addSteps()">Log</button></div>
-      <div class="sec-title mt16">This week</div><div class="card"><div style="display:flex;gap:6px">${bars}</div><div class="tiny mt12">${wk.filter(d=>(DB.steps[d]||0)>=goal).length}/7 days hit your ${goal.toLocaleString()}-step goal.</div></div>`;
-  }
-}
-let lastMac=null;
-function addMacros(){const k=+($("qa-kcal").value||0),p=+($("qa-prot").value||0);if(!k&&!p)return;quickMac(k,p)}
-function quickMac(k,p){const t=today();DB.macros[t]=DB.macros[t]||{kcal:0,prot:0};DB.macros[t].kcal+=k;DB.macros[t].prot+=p;lastMac={k,p};save();renderFuel();haptic(15)}
-function undoMac(){if(!lastMac)return;const t=today();DB.macros[t].kcal=Math.max(0,DB.macros[t].kcal-lastMac.k);DB.macros[t].prot=Math.max(0,DB.macros[t].prot-lastMac.p);lastMac=null;save();renderFuel()}
-function addWeight(){const v=+$("qa-weight").value;if(!v||v<30||v>300){toast("Enter a weight in kg");return}const t=today();const i=DB.weight.findIndex(e=>e.date===t);if(i>=0)DB.weight[i].kg=v;else DB.weight.push({date:t,kg:v});DB.weight.sort((a,b)=>a.date<b.date?-1:1);save();renderFuel();toast("Weigh-in logged")}
-function addSteps(){const v=+$("qa-steps").value;if(!v)return;DB.steps[today()]=v;save();renderFuel();toast("Steps logged")}
 function bwChart(){
   const wl=DB.weight;if(wl.length<2)return`<div class="empty">Two or more weigh-ins unlock the trend line and your projected goal date.</div>`;
   const goal=DB.prefs.goalWeight;
@@ -1211,18 +1184,17 @@ function renderProgress(){
   $("heatcal").innerHTML=h;
   // exercise selector
   const sel=$("prog-ex-sel");
-  if(!sel.options.length){
-    DAY_ORDER.forEach(dayId=>{DAYS[dayId].exercises.forEach(ex=>{if(ex.timed)return;const o=document.createElement("option");o.value=ex.id;o.textContent=`${esc(ex.name)} (${DAYS[dayId].short})`;sel.appendChild(o)})});
+  const want=DAY_ORDER.flatMap(d=>(DAYS[d].exercises||[]).filter(e=>!e.timed).map(e=>e.id)).join(",");
+  if(sel.dataset.built!==want){            // rebuild whenever the program changes
+    const keep=sel.value;sel.innerHTML="";
+    DAY_ORDER.forEach(dayId=>(DAYS[dayId].exercises||[]).forEach(ex=>{
+      if(ex.timed)return;const o=document.createElement("option");
+      o.value=ex.id;o.textContent=`${esc(ex.name)} (${esc(DAYS[dayId].short)})`;sel.appendChild(o)}));
+    sel.dataset.built=want;
+    if(keep&&findEx(keep))sel.value=keep;
   }
   renderLiftChart();
-  // volume by muscle (this week vs last)
-  const wk=weekDates();
-  const vol={};
-  DAY_ORDER.forEach(dayId=>{wk.forEach(date=>{const s=getSess(dayId,date);if(!s)return;DAYS[dayId].exercises.forEach(ex=>{(s[ex.id]||[]).forEach(x=>{if(setDone(x))vol[ex.muscle]=(vol[ex.muscle]||0)+1})})})});
-  const muscles=["Chest","Back","Shoulders","Legs","Arms","Core","Grip"];
-  const maxV=Math.max(1,...muscles.map(m=>vol[m]||0));
-  const colors={Chest:"#e3ff3f",Back:"#3bc7f3",Shoulders:"#ff6b35",Legs:"#a78bfa",Arms:"#34d77b",Core:"#f7d038",Grip:"#f4506b"};
-  $("vol-by-muscle").innerHTML=muscles.map(m=>{const v=vol[m]||0;return`<div class="vol-row"><div class="vol-hd"><b>${m}</b><span>${v} sets</span></div><div class="vol-track"><div class="vol-fill" style="width:${v/maxV*100}%;background:${colors[m]}"></div></div></div>`}).join("")+`<div class="tiny mt8">Completed sets this week (Mon–Sun). Aim for 10+ per big muscle.</div>`;
+  $("vol-by-muscle").innerHTML=tonnageTrend();
   // PR list
   $("rev-week").innerHTML=renderReview();
   $("rev-balance").innerHTML=renderBalance();
@@ -1230,9 +1202,15 @@ function renderProgress(){
   $("pr-list").innerHTML=renderPRTimeline();
 }
 function renderLiftChart(){
-  const exId=$("prog-ex-sel").value||"bench";
-  const ex=findEx(exId),hist=exHistory(exId);
+  const sel=$("prog-ex-sel");
+  let exId=sel.value,ex=findEx(exId);
+  if(!ex){                                   // exercise was removed from the program
+    exId=(sel.options[0]||{}).value||"";ex=findEx(exId);
+    if(sel.options.length)sel.value=exId;
+  }
   const card=$("lift-chart-card");
+  if(!ex){card.innerHTML=`<div class="empty">Add an exercise to your program to chart it.</div>`;return}
+  const hist=exHistory(exId);
   if(hist.length<2){card.innerHTML=`<div class="chart-kick">${esc(ex.name)}</div><div class="empty">Log this lift in two sessions to unlock the chart.</div>`;return}
   const g=LIFT_GOALS[exId];
   const pts=hist.slice(-20);
@@ -1243,7 +1221,7 @@ function renderLiftChart(){
   const line=pts.map((p,i)=>`${i?"L":"M"}${px(i).toFixed(1)},${py(p.e).toFixed(1)}`).join("");
   const dots=pts.map((p,i)=>`<circle cx="${px(i).toFixed(1)}" cy="${py(p.e).toFixed(1)}" r="2.6" fill="#e3ff3f"/>`).join("");
   const best=Math.max(...vals),last=pts[pts.length-1];
-  card.innerHTML=`<div class="chart-kick">Estimated 1RM · ${DAYS[DAY_ORDER.find(d=>DAYS[d].exercises.some(e=>e.id===exId))].short}</div><div class="chart-name">${esc(ex.name)}</div>
+  card.innerHTML=`<div class="chart-kick">Estimated 1RM · ${esc((DAYS[DAY_ORDER.find(d=>(DAYS[d].exercises||[]).some(e=>e.id===exId))]||{short:""}).short)}</div><div class="chart-name">${esc(ex.name)}</div>
     <div class="kpi3"><div class="kpi"><div class="kpi-l">Best e1RM</div><div class="kpi-v">${best}<small> kg</small></div></div>
     <div class="kpi"><div class="kpi-l">Last top set</div><div class="kpi-v">${last.w}×${last.r}</div></div>
     <div class="kpi"><div class="kpi-l">${g?"To goal":"Sessions"}</div><div class="kpi-v">${g?(Math.max(0,g.target-best)||"🏆")+(g.target-best>0?"":""):hist.length}<small>${g&&g.target-best>0?" kg":""}</small></div></div></div>
@@ -1380,7 +1358,6 @@ function doImport(replace){
   toast("Import complete — history updated",true);
   go("home");
 }
-function restoreJSON(inp){importFile(inp)}
 
 /* Migrate data written by the previous Gym Tracker (gyt-* keys) */
 function importOld(){
@@ -1612,7 +1589,7 @@ function prMusclesThisWeek(){
 }
 let _wsCache=null,_wsKey="";
 function weekSets(off){
-  const key=today()+"|"+(off||0)+"|"+JSON.stringify(DB.sessions).length;
+  const key=today()+"|"+(off||0)+"|"+DB_REV;   // exact, not a length hash
   if(_wsCache&&_wsKey===key)return _wsCache;
   const detail={},coarse={},src={},csrc={},wk=weekDates(off||0);
   DAY_ORDER.forEach(dayId=>wk.forEach(date=>{
@@ -1754,7 +1731,9 @@ function renderBodyMap(){
   if(BODY_VIEW==="arms"){
     el.innerHTML=`<div class="seg" style="margin-bottom:12px">${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>`
       +renderArmMap()
-      +`<div class="tiny mt12">Each head shown separately — curls hit the short head hardest, rows and pulldowns the long head. Same colour scale as the full body.</div>`;
+      +`<div class="row mt12" style="flex-wrap:wrap;gap:6px;justify-content:center">
+      ${[["#2b4a7a","none"],["#2a5c46","well behind"],["#2f9e63","behind"],["#a8c62c","solid"],["#e3ff3f","most worked"]].map(l=>`<span class="pill" style="border-color:${l[0]};color:${l[0]}">${l[1]}</span>`).join("")}</div>
+      <div class="tiny mt12" style="line-height:1.6">Individual heads have no established weekly set target, so this view compares them <b style="color:var(--muted)">against each other</b> rather than against a number. Brightest = your most-worked head; under 35% of it is flagged as behind.</div>`;
     return;
   }
   const det=regionSets(true),sets=det.sets,prm=prMusclesThisWeek();
@@ -2182,17 +2161,6 @@ const SUB_NAME={trap_up:"Upper traps",trap_mid:"Mid traps",delt_front:"Front del
 delt_rear:"Rear delt",bi_long:"Biceps long head",bi_short:"Biceps short head",brach:"Brachialis",
 tri_long:"Triceps long head",tri_lat:"Triceps lateral head",tri_med:"Triceps medial head",
 fore_flex:"Forearm flexors",fore_ext:"Forearm extensors"};
-/* which heads each lift actually hits */
-const ARM_MAP={
-bench:["delt_front","tri_lat","tri_med"],incline:["delt_front","tri_lat","tri_med"],
-shoulder:["delt_front","delt_side","tri_long","tri_lat"],facepull:["delt_rear","trap_mid"],
-pushdown:["tri_lat","tri_med"],lateral:["delt_side"],chestfly:["delt_front"],
-hang:["fore_flex","fore_ext"],hang3:["fore_flex","fore_ext"],farmers:["fore_flex","fore_ext","trap_up"],
-pullup:["bi_long","brach","delt_rear"],bbrow:["bi_long","brach","trap_mid","delt_rear"],
-srow:["bi_short","brach","trap_mid"],lmrow:["bi_long","brach","trap_mid"],
-curl:["bi_short","bi_long","brach"],shrug:["trap_up","fore_flex"],wrist:["fore_flex"],
-deadlift:["trap_up","fore_flex"],rackpull:["trap_up","fore_flex"],squat:[],rdl:[],lunge:[],
-crunch:[],plank:[],hollow:[],lmtwist:[],calf4:[],hipthrust:[],pullthr:[]};
 const SUB_OF={trap:["trap_up","trap_mid"],delt:["delt_front","delt_side"],reardelt:["delt_rear"],
 bi:["bi_long","bi_short","brach"],tri:["tri_long","tri_lat","tri_med"],fore:["fore_flex","fore_ext"]};
 
@@ -2215,19 +2183,28 @@ const ARM_SVG=`
 <ellipse cx="150" cy="332" rx="15" ry="17" fill="#1c2029" stroke="#2e3342" stroke-width="1.5"/>`;
 const ARM_LABELS=[[52,20,"FRONT OF ARM"],[150,20,"BACK OF ARM"]];
 
+function armColor(n,max){
+  if(!n)return"#2b4a7a";
+  const p=max?n/max:0;
+  if(p<.3)return"#2a5c46";
+  if(p<.55)return"#2f9e63";
+  if(p<.8)return"#a8c62c";
+  return"#e3ff3f";
+}
 function renderArmMap(){
   const det=armSets(),sets=det.sets;
+  const peak=Math.max(1,...Object.keys(sets).map(k=>sets[k]||0));
   let svg=ARM_SVG.replace(/data-r="(\w+)"/g,(m,r)=>{
     const n=Math.round((sets[r]||0)*10)/10;
-    return `fill="${heatColor(n,r)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}"`;
+    return `fill="${armColor(n,peak)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}"`;
   });
   let labels=ARM_LABELS.map(l=>`<text x="${l[0]}" y="${l[1]}" font-size="9" fill="#8a90a0" font-family="IBM Plex Mono" text-anchor="middle" letter-spacing=".08em">${l[2]}</text>`).join("");
-  const order=["delt_front","delt_side","delt_rear","bi_long","bi_short","brach","tri_long","tri_lat","tri_med","fore_flex","fore_ext","trap_up","trap_mid"];
+  const order=Object.keys(SUB_NAME).sort((a,b)=>(sets[b]||0)-(sets[a]||0));
   const rows=order.map(r=>{const n=Math.round((sets[r]||0)*10)/10;
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
-      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${SUB_NAME[r]}</div>
-      <div class="tiny">${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
-      <div class="hist-val" style="color:${heatColor(n,r)}">${n}</div></div>`}).join("");
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${SUB_NAME[r]}${n&&(n/peak)<0.35?' <span class="tag" style="background:#0d2530;color:var(--sky)">behind</span>':""}</div>
+      <div class="tiny">${n?Math.round(n/peak*100)+"% of your most-worked head · "+esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
+      <div class="hist-val" style="color:${armColor(n,peak)}">${n}</div></div>`}).join("");
   return`<svg viewBox="-72 0 344 372" style="width:100%;max-height:430px;display:block" role="img" aria-label="Detailed arm and shoulder heat map">${svg}${labels}${mapLabels("arms")}</svg>${rows}`;
 }
 
@@ -2254,7 +2231,10 @@ parts:{
 }};
 const MINI_ORDER=["trap","lat","upback","lowback","chest","delt","reardelt","bi","tri","fore","abs","oblique","glute","quad","ham","calf"];
 function miniBody(exId,muscle){
-  const hit=EX_REGIONS[exId]||MUSCLE_FALLBACK[muscle]||[];
+  // derived from EX_MUSCLES so the icon can never disagree with the map
+  const ex=findEx(exId)||{id:exId,muscle};
+  const d=exDetail(ex),hit=[];
+  Object.keys(COARSE_SUBS).forEach(c=>{if(COARSE_SUBS[c].some(x=>d.p.indexOf(x)>=0))hit.push(c)});
   let g=`<path d="M13 12 L19 10 L25 12 L26 22 L24 36 L25 44 L24 58 L23 70 L15 70 L14 58 L13 44 L14 36 L12 22 Z" fill="#1a1d26"/>`;
   MINI_ORDER.forEach(r=>{
     if(!MINI.parts[r])return;
@@ -2458,7 +2438,7 @@ function weekStats(off){
   DAY_ORDER.forEach(dayId=>wk.forEach(date=>{
     const s=getSess(dayId,date);if(!s)return;let any=false;
     (DAYS[dayId].exercises||[]).forEach(ex=>{
-      (s[ex.id]||[]).forEach(x=>{if(setDone(x)){sets++;any=true;if(x.w&&x.r)ton+=(+x.w)*(+x.r)}});
+      (s[ex.id]||[]).forEach(x=>{if(setDone(x)){sets++;any=true;ton+=setTonnage(ex,x)}});
       const b=bestSet(dayId,date,ex.id);
       if(b&&b.w&&b.r){const e=e1rm(b.w,b.r);if(!byEx[ex.id]||e>byEx[ex.id])byEx[ex.id]=e}
     });
@@ -2591,6 +2571,28 @@ function homeAlert(){
     <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--sky)">${u.name} is light this week</div>
     <div class="tiny mt8">${u.n} sets so far, ${u.lo}–${u.hi} is the usual range${b.under.length>1?` · ${b.under.length-1} other groups also low`:""}</div></div></div></div>`}
   el.innerHTML=h;
+}
+
+function tonnageTrend(){
+  const wks=[];for(let i=7;i>=0;i--)wks.push({off:-i,t:tonnage7d(-i),d:weekDates(-i)[0]});
+  const max=Math.max(1,...wks.map(w=>w.t));
+  if(!wks.some(w=>w.t))return`<div class="empty">Log a few sessions and your weekly tonnage trend appears here.</div>`;
+  const cur=wks[7].t,prev=wks[6].t;
+  const bars=wks.map((w,i)=>{
+    const h=Math.max(3,Math.round(w.t/max*90)),now=i===7;
+    return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div style="width:100%;height:96px;display:flex;align-items:flex-end">
+        <div title="${fmtDate(w.d)}: ${w.t.toLocaleString()} kg" style="width:100%;height:${h}px;border-radius:5px 5px 2px 2px;background:${now?"var(--volt)":w.t?"var(--panel3)":"#171a21"}"></div></div>
+      <div class="tiny mono" style="${now?"color:var(--volt)":""}">${fmtDate(w.d).split(" ")[0]}</div></div>`}).join("");
+  const pct=prev?Math.round((cur-prev)/prev*100):0;
+  return`<div class="card">
+    <div class="spread" style="align-items:baseline">
+      <div><div class="chart-kick">This week</div><div class="num-lg mt8">${(cur/1000).toFixed(1)}<span style="font-size:12px;color:var(--dim)"> t</span></div></div>
+      <div class="tiny">${prev?(pct>0?`<span style="color:var(--pos)">▲ ${pct}%</span>`:pct<0?`<span style="color:var(--neg)">▼ ${Math.abs(pct)}%</span>`:"level")+" vs last week":""}</div>
+    </div>
+    <div class="row mt16" style="gap:5px;align-items:flex-end">${bars}</div>
+    <div class="tiny mt12">Total weight moved each week (weight × reps, summed). Carries and timed holds are excluded — metres and seconds aren't reps. Rising over months is the clearest sign the training is working.</div>
+  </div>`;
 }
 
 /* ---------- INIT ---------- */
