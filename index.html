@@ -1639,29 +1639,13 @@ function armSets(){const w=weekSets();return{sets:w.detail,src:w.src}}
 function viewRegions(v){
   return [...new Set((BODY[v].match(/data-r="(\w+)"/g)||[]).map(x=>x.slice(8,-1)))].filter(r=>r!=="head"&&r!=="neck");
 }
-/* Colour is judged against each muscle's OWN weekly target, not one fixed
-   scale. 10 sets is plenty for calves and light for quads — an absolute
-   scale made a muscle inside its range look worse than one truly behind. */
-const SUB_PARENT={};
-function targetFor(r){
-  if(SET_TARGET[r])return SET_TARGET[r];
-  if(!Object.keys(SUB_PARENT).length)
-    Object.keys(COARSE_SUBS).forEach(c=>COARSE_SUBS[c].forEach(x=>SUB_PARENT[x]=c));
-  return SET_TARGET[SUB_PARENT[r]]||null;
-}
-function heatColor(n,r){
+/* blue = untouched · green = light · red = hammered */
+function heatColor(n){
   if(!n)return"#2b4a7a";
-  const t=r?targetFor(r):null;
-  if(!t)return n<5?"#2f9e63":n<10?"#a8c62c":n<15?"#e8a02a":"#e0453f";
-  if(n<t[0])return"#2f9e63";
-  if(n<=t[1])return"#a8c62c";
-  if(n<=t[1]*1.25)return"#e8a02a";
+  if(n<5)return"#2f9e63";
+  if(n<10)return"#a8c62c";
+  if(n<15)return"#e8a02a";
   return"#e0453f";
-}
-function heatLabel(n,r){
-  if(!n)return"none";
-  const t=r?targetFor(r):null;if(!t)return"";
-  return n<t[0]?"under":n<=t[1]?"on target":n<=t[1]*1.25?"at limit":"over";
 }
 const BODY={
 front:`<ellipse data-r="head" cx="100" cy="30" rx="19" ry="23"/>
@@ -1771,27 +1755,27 @@ function renderBodyMap(){
     const n=Math.round((sets[r]||0)*10)/10;
     const pb=prm[r];
     if(FOCUS&&FOCUS.indexOf(r)>=0)
-      return `fill="${heatColor(n,r)}" stroke="${pb?"#e3ff3f":"#eef0f4"}" stroke-width="${pb?3.2:2.6}" stroke-linejoin="round" opacity="${n?1:.6}" aria-label="${REGION_NAME[r]||r}: ${n} sets${pb?", PB this week":""}"`;
-    return `fill="${heatColor(n,r)}" stroke="${pb?"#eef0f4":"#0d0f14"}" stroke-width="${pb?2.4:1.5}" stroke-linejoin="round" opacity="${n?1:.5}" aria-label="${REGION_NAME[r]||r}: ${n} sets${pb?", PB this week":""}"`;
+      return `fill="${heatColor(n)}" stroke="${pb?"#e3ff3f":"#eef0f4"}" stroke-width="${pb?3.2:2.6}" stroke-linejoin="round" opacity="${n?1:.6}" aria-label="${REGION_NAME[r]||r}: ${n} sets${pb?", PB this week":""}"`;
+    return `fill="${heatColor(n)}" stroke="${pb?"#eef0f4":"#0d0f14"}" stroke-width="${pb?2.4:1.5}" stroke-linejoin="round" opacity="${n?1:.5}" aria-label="${REGION_NAME[r]||r}: ${n} sets${pb?", PB this week":""}"`;
   });
   const shown=Object.keys(sets).sort((a,b)=>sets[b]-sets[a]);
   const rows=viewRegions(BODY_VIEW).filter(r=>MUTE.indexOf(r)<0&&r!=="hand").map(r=>{
     const n=Math.round((sets[r]||0)*10)/10;
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${REGION_NAME[r]||r}${prm[r]?' <span class="tag tag-c">PB</span>':""}</div>
-      <div class="tiny">${(()=>{const t=targetFor(r);return t?`${heatLabel(n,r)} · aim ${t[0]}–${t[1]} — `:""})()}${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
-      <div class="hist-val" style="color:${heatColor(n,r)}">${n}</div></div>`;
+      <div class="tiny">${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
+      <div class="hist-val" style="color:${heatColor(n)}">${n}</div></div>`;
   }).join("");
-  const legend=[["#2b4a7a","not trained"],["#2f9e63","under target"],["#a8c62c","on target"],["#e8a02a","at limit"],["#e0453f","over"]];
+  const legend=[["0","#2b4a7a","untouched"],["1–4","#2f9e63","light"],["5–9","#a8c62c","solid"],["10–14","#e8a02a","strong"],["15+","#e0453f","hammered"]];
   el.innerHTML=`<div class="seg" style="margin-bottom:12px">
       ${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}
     </div>
     <svg viewBox="-72 0 344 396" style="width:100%;max-height:420px;display:block" role="img" aria-label="Muscle heat map, ${BODY_VIEW} view">${svg}${mapLabels(BODY_VIEW)}</svg>
     <div class="row mt12" style="flex-wrap:wrap;gap:6px;justify-content:center">
-      ${legend.map(l=>`<span class="pill" style="border-color:${l[0]};color:${l[0]}">${l[1]}</span>`).join("")}
+      ${legend.map(l=>`<span class="pill" style="border-color:${l[1]};color:${l[1]}">${l[0]} ${l[2]}</span>`).join("")}
     </div>
     <div class="tiny mt12" style="line-height:1.6"><b style="color:var(--muted)">${BODY_VIEW==="back"?"Back view shows rear delts, triceps and lats":BODY_VIEW==="front"?"Front view shows front delts, biceps and quads":"Side view: arm chain outlined in white, body muted behind it"}</b> — the same limb is a different muscle from front and back, so the colours differ between views.</div>
-    <div class="tiny mt8" style="line-height:1.6">Colour is judged against <b style="color:var(--muted)">each muscle's own weekly target</b> — 10 sets is plenty for calves and light for quads. Sets are counted <b style="color:var(--muted)">fractionally</b>: a lift that directly trains a muscle scores 1, one that merely assists scores 0.5. A white outline marks a muscle you set a <b style="color:var(--volt)">PB</b> in this week.</div>
+    <div class="tiny mt8" style="line-height:1.6">Sets are counted <b style="color:var(--muted)">fractionally</b>: a lift that directly trains a muscle scores 1, one that merely assists scores 0.5. A white outline marks a muscle you set a <b style="color:var(--volt)">PB</b> in this week.</div>
     <div class="sec-title mt16" style="font-size:9.5px">What fed each muscle</div>
     ${rows||`<div class="empty" style="padding:14px">No completed sets this week yet. Sets only count once you tap the ✓ next to them.</div>`}`;
 }
@@ -2219,7 +2203,7 @@ function renderArmMap(){
   const det=armSets(),sets=det.sets;
   let svg=ARM_SVG.replace(/data-r="(\w+)"/g,(m,r)=>{
     const n=Math.round((sets[r]||0)*10)/10;
-    return `fill="${heatColor(n,r)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}"`;
+    return `fill="${heatColor(n)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}"`;
   });
   let labels=ARM_LABELS.map(l=>`<text x="${l[0]}" y="${l[1]}" font-size="9" fill="#8a90a0" font-family="IBM Plex Mono" text-anchor="middle" letter-spacing=".08em">${l[2]}</text>`).join("");
   const order=["delt_front","delt_side","delt_rear","bi_long","bi_short","brach","tri_long","tri_lat","tri_med","fore_flex","fore_ext","trap_up","trap_mid"];
@@ -2227,7 +2211,7 @@ function renderArmMap(){
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${SUB_NAME[r]}</div>
       <div class="tiny">${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
-      <div class="hist-val" style="color:${heatColor(n,r)}">${n}</div></div>`}).join("");
+      <div class="hist-val" style="color:${heatColor(n)}">${n}</div></div>`}).join("");
   return`<svg viewBox="-72 0 344 372" style="width:100%;max-height:430px;display:block" role="img" aria-label="Detailed arm and shoulder heat map">${svg}${labels}${mapLabels("arms")}</svg>${rows}`;
 }
 
