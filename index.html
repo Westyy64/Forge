@@ -304,6 +304,7 @@ a{color:var(--sky);text-decoration:none}
       <div class="sec-title">The Big Four</div>
       <div class="card" id="bigfour"></div>
     </div>
+    <div class="mt16" id="home-alert"></div>
     <div class="mt16 mb16">
       <div class="sec-title">Recent Records</div>
       <div class="card" id="home-prs"><div class="empty">Log sets to start setting records.<br><br>Got a backup file? <b style="color:var(--volt)">More → Restore from backup</b></div></div>
@@ -359,6 +360,18 @@ a{color:var(--sky);text-decoration:none}
     <div class="eyebrow">Analytics</div>
     <div class="h-display">PROOF OF<br><em>WORK</em></div>
     <div class="mt16">
+      <div class="sec-title">This week's review</div>
+      <div id="rev-week"></div>
+    </div>
+    <div class="mt16">
+      <div class="sec-title">Balance check</div>
+      <div id="rev-balance"></div>
+    </div>
+    <div class="mt16">
+      <div class="sec-title">Stalls &amp; fatigue</div>
+      <div id="rev-stalls"></div>
+    </div>
+    <div class="mt16">
       <div class="sec-title">Consistency · last 5 weeks (Mon–Sun)</div>
       <div class="card"><div class="heatcal" id="heatcal"></div></div>
     </div>
@@ -372,8 +385,8 @@ a{color:var(--sky);text-decoration:none}
       <div class="card" id="vol-by-muscle"></div>
     </div>
     <div class="mt16 mb16">
-      <div class="sec-title">Personal Records</div>
-      <div class="card" id="pr-list"></div>
+      <div class="sec-title">PR timeline</div>
+      <div id="pr-list"></div>
     </div>
   </div>
 </div>
@@ -495,7 +508,7 @@ let DAYS={
     {id:"lmrow",name:"Landmine Single-Arm Row",type:"compound",sets:3,reps:"10–12 each",muscle:"Back",equip:"Landmine — brace core, pull elbow back"},
     {id:"curl",name:"Cable Bicep Curl",type:"isolation",sets:2,reps:"12–15",muscle:"Arms",equip:"Cable straight bar"},
     {id:"shrug",name:"Barbell Shrug",type:"isolation",sets:4,reps:"10–15",muscle:"Back",equip:"Barbell — shrug straight up, 1 s hold"},
-    {id:"wrist",name:"Cable Wrist Curl",type:"finisher",sets:3,reps:"15–20",muscle:"Grip",equip:"Cable low — forearms on thighs, curl wrists"},
+    {id:"wrist",name:"Cable Wrist Curl",type:"finisher",sets:4,reps:"15–20",muscle:"Grip",equip:"Cable low, forearms on thighs — 2 sets underhand (flexors), then 2 sets overhand (extensors)"},
     {id:"hang3",name:"Dead Hang",type:"finisher",sets:3,reps:"max sec",muscle:"Grip",equip:"Chin-up bar — log seconds in reps",timed:true},
   ]},
   day4:{label:"Day 4 · Lower B",short:"LOWER B",sub:"Posterior chain · Glutes · Core",dur:"~65 min",exercises:[
@@ -535,7 +548,7 @@ const TIPS={
   lmrow:"Staggered stance, brace core. Pull handle to hip, elbow back. Back stays flat.",
   curl:"Elbows pinned. Curl up, squeeze at top. Slow controlled descent — no swinging.",
   shrug:"Heavy bar in front. Shrug straight up, hold 1 second. Don't roll the shoulders.",
-  wrist:"Forearms on thighs, palms up. Curl wrists through a full range.",
+  wrist:"Forearms braced on your thighs. Sets 1–2 palms UP, curling the wrists toward you for the flexors. Sets 3–4 palms DOWN, lifting the backs of the hands for the extensors. Full range, no elbow movement.",
   hang3:"Full grip, straight arms. Shoulders engaged. Hold as long as possible.",
   deadlift:"Bar over mid-foot, flat back. Push the floor away, stand tall. Reset every rep.",
   rackpull:"Bar at knee height in the rack. Grip hard, drive hips through to lockout.",
@@ -623,7 +636,7 @@ function weeklyStreak(){
 }
 function tonnage7d(){
   const wk=weekDates();let t=0;
-  DAY_ORDER.forEach(d=>{wk.forEach(date=>{const s=getSess(d,date);if(!s)return;Object.keys(s).forEach(k=>{if(k.startsWith("_"))return;(s[k]||[]).forEach(x=>{if(x&&x.done&&x.w&&x.r)t+=x.w*x.r})})})});
+  DAY_ORDER.forEach(d=>{wk.forEach(date=>{const s=getSess(d,date);if(!s)return;Object.keys(s).forEach(k=>{if(k.startsWith("_"))return;(s[k]||[]).forEach(x=>{if(setDone(x)&&x.w&&x.r)t+=x.w*x.r})})})});
   return Math.round(t);
 }
 function renderHome(){
@@ -653,6 +666,7 @@ function renderHome(){
   $("t-vol").innerHTML=`${tonnage7d().toLocaleString()}<span class="unit">kg</span>`;
   $("t-streak").innerHTML=`${weeklyStreak()}<span class="unit">wks</span>`;
   renderBigFour();
+  homeAlert();
   // recent PRs
   const prs=[...DB.prs].reverse().slice(0,4);
   $("home-prs").innerHTML=prs.length?prs.map(p=>{const ex=findEx(p.exId);return`<div class="pr-row"><div><div class="pr-ex">${esc(ex?ex.name:p.exId)}</div><div class="pr-date">${fmtDate(p.date)}</div></div><div class="pr-val">${p.val} ${p.type==="e1rm"?"kg e1RM":p.type}</div></div>`}).join(""):`<div class="empty">Log sets to start setting records.<br><br>Got a backup file? <b style="color:var(--volt)">More → Restore from backup</b></div>`;
@@ -1171,7 +1185,7 @@ function renderProgress(){
   for(let i=0;i<35;i++){
     const d=new Date(start);d.setDate(start.getDate()+i);const ds=dstr(d);
     if(ds>today()){h+=`<div class="heat-cell" style="opacity:.25"></div>`;continue}
-    let sets=0;DAY_ORDER.forEach(dayId=>{const s=getSess(dayId,ds);if(s)Object.keys(s).forEach(k=>{if(!k.startsWith("_"))sets+=(s[k]||[]).filter(x=>x&&x.done).length})});
+    let sets=0;DAY_ORDER.forEach(dayId=>{const s=getSess(dayId,ds);if(s)Object.keys(s).forEach(k=>{if(!k.startsWith("_"))sets+=(s[k]||[]).filter(setDone).length})});
     const lvl=sets===0?"":sets<10?"l1":sets<20?"l2":"l3";
     h+=`<div class="heat-cell ${lvl}" title="${ds}: ${sets} sets"></div>`;
   }
@@ -1185,14 +1199,16 @@ function renderProgress(){
   // volume by muscle (this week vs last)
   const wk=weekDates();
   const vol={};
-  DAY_ORDER.forEach(dayId=>{wk.forEach(date=>{const s=getSess(dayId,date);if(!s)return;DAYS[dayId].exercises.forEach(ex=>{(s[ex.id]||[]).forEach(x=>{if(x&&x.done)vol[ex.muscle]=(vol[ex.muscle]||0)+1})})})});
+  DAY_ORDER.forEach(dayId=>{wk.forEach(date=>{const s=getSess(dayId,date);if(!s)return;DAYS[dayId].exercises.forEach(ex=>{(s[ex.id]||[]).forEach(x=>{if(setDone(x))vol[ex.muscle]=(vol[ex.muscle]||0)+1})})})});
   const muscles=["Chest","Back","Shoulders","Legs","Arms","Core","Grip"];
   const maxV=Math.max(1,...muscles.map(m=>vol[m]||0));
   const colors={Chest:"#e3ff3f",Back:"#3bc7f3",Shoulders:"#ff6b35",Legs:"#a78bfa",Arms:"#34d77b",Core:"#f7d038",Grip:"#f4506b"};
   $("vol-by-muscle").innerHTML=muscles.map(m=>{const v=vol[m]||0;return`<div class="vol-row"><div class="vol-hd"><b>${m}</b><span>${v} sets</span></div><div class="vol-track"><div class="vol-fill" style="width:${v/maxV*100}%;background:${colors[m]}"></div></div></div>`}).join("")+`<div class="tiny mt8">Completed sets this week (Mon–Sun). Aim for 10+ per big muscle.</div>`;
   // PR list
-  const prs=[...DB.prs].reverse().slice(0,15);
-  $("pr-list").innerHTML=prs.length?prs.map(p=>{const ex=findEx(p.exId);return`<div class="pr-row"><div><div class="pr-ex">${esc(ex?ex.name:p.exId)}</div><div class="pr-date">${fmtDate(p.date)}</div></div><div class="pr-val">${p.val} ${p.type==="e1rm"?"kg e1RM":p.type}</div></div>`}).join(""):`<div class="empty">PRs land here automatically the moment you beat a previous best.</div>`;
+  $("rev-week").innerHTML=renderReview();
+  $("rev-balance").innerHTML=renderBalance();
+  $("rev-stalls").innerHTML=renderStalls();
+  $("pr-list").innerHTML=renderPRTimeline();
 }
 function renderLiftChart(){
   const exId=$("prog-ex-sel").value||"bench";
@@ -1432,6 +1448,11 @@ const SEED_FOODS=[
 
 /* ---------- migrate old shapes, seed the food library ---------- */
 function v2migrate(){
+  // one-off: wrist curl became 4 sets (2 underhand + 2 overhand)
+  try{if(DB.program&&DB.program.days){Object.keys(DB.program.days).forEach(d=>{
+    (DB.program.days[d].exercises||[]).forEach(e=>{
+      if(e.id==="wrist"&&e.sets===3){e.sets=4;
+        e.equip="Cable low, forearms on thighs — 2 sets underhand (flexors), then 2 sets overhand (extensors)"}})})}}catch(e){}
   DB.prefs=Object.assign({age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,
     autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,goalWeight:85,kcalTarget:2200,
     proteinTarget:200,stepGoal:5000,sound:true},DB.prefs);
@@ -1482,7 +1503,7 @@ function bodyWeightOn(date){
 function trainedKcal(date){
   let burn=0;
   DAY_ORDER.forEach(d=>{const s=getSess(d,date);
-    if(s&&Object.keys(s).some(k=>!k.startsWith("_")&&(s[k]||[]).some(x=>x&&x.done)))burn=DB.prefs.trainBurn});
+    if(s&&Object.keys(s).some(k=>!k.startsWith("_")&&(s[k]||[]).some(setDone)))burn=DB.prefs.trainBurn});
   return burn;
 }
 function energyBalance(date){
@@ -1512,18 +1533,70 @@ const REGION_NAME={chest:"Chest",delt:"Front delts",reardelt:"Rear delts",bi:"Bi
 fore:"Forearms",abs:"Abs",oblique:"Obliques",trap:"Traps",lat:"Lats",upback:"Upper back",
 lowback:"Lower back",glute:"Glutes",quad:"Quads",ham:"Hamstrings",calf:"Calves"};
 
-function regionSets(detail){
-  const out={},src={},wk=weekDates();
+/* ══════ ONE muscle mapping, used by every view ══════
+   Detailed regions are the truth; the coarse body map aggregates from them,
+   so a muscle can never read differently on two screens.                    */
+const EX_MUSCLES={
+bench:["chest","delt_front","tri_lat","tri_med"],
+incline:["chest","delt_front","tri_lat","tri_med"],
+shoulder:["delt_front","delt_side","tri_long","tri_lat"],
+facepull:["delt_rear","trap_mid","upback"],
+pushdown:["tri_lat","tri_med"],
+lateral:["delt_side"],
+chestfly:["chest","delt_front"],
+hang:["fore_flex","fore_ext"],hang3:["fore_flex","fore_ext"],
+squat:["quad","glute","abs"],
+lunge:["quad","glute"],
+rdl:["ham","glute","lowback"],
+pullthr:["glute","ham"],
+farmers:["fore_flex","fore_ext","trap_up","abs"],
+crunch:["abs"],plank:["abs"],hollow:["abs"],
+pullup:["lat","bi_long","brach","delt_rear"],
+bbrow:["lat","upback","bi_long","brach","trap_mid","delt_rear"],
+srow:["upback","lat","bi_short","brach","trap_mid"],
+lmrow:["lat","upback","bi_long","brach","trap_mid"],
+curl:["bi_short","bi_long","brach"],
+shrug:["trap_up","fore_flex"],
+wrist:["fore_flex","fore_ext"],
+deadlift:["ham","glute","lowback","trap_up","fore_flex"],
+rackpull:["trap_up","lowback","glute","fore_flex"],
+hipthrust:["glute","ham"],
+calf4:["calf"],
+lmtwist:["oblique","abs"]};
+const COARSE_SUBS={chest:["chest"],delt:["delt_front","delt_side"],reardelt:["delt_rear"],
+bi:["bi_long","bi_short","brach"],tri:["tri_long","tri_lat","tri_med"],fore:["fore_flex","fore_ext"],
+trap:["trap_up","trap_mid"],lat:["lat"],upback:["upback"],lowback:["lowback"],abs:["abs"],
+oblique:["oblique"],glute:["glute"],quad:["quad"],ham:["ham"],calf:["calf"]};
+
+/* a set counts once it has weight AND reps, ticked or not */
+function setDone(x){return !!(x&&(x.done||((+x.w||0)>0&&(+x.r||0)>0)||(!!x.done)))}
+function exDetail(ex){
+  if(EX_MUSCLES[ex.id])return EX_MUSCLES[ex.id];
+  const out=[];(MUSCLE_FALLBACK[ex.muscle]||[]).forEach(r=>(COARSE_SUBS[r]||[r]).forEach(x=>out.push(x)));
+  return out;
+}
+let _wsCache=null,_wsKey="";
+function weekSets(off){
+  const key=today()+"|"+(off||0)+"|"+JSON.stringify(DB.sessions).length;
+  if(_wsCache&&_wsKey===key)return _wsCache;
+  const detail={},coarse={},src={},csrc={},wk=weekDates(off||0);
   DAY_ORDER.forEach(dayId=>wk.forEach(date=>{
     const s=getSess(dayId,date);if(!s)return;
     (DAYS[dayId].exercises||[]).forEach(ex=>{
-      const n=(s[ex.id]||[]).filter(x=>x&&x.done).length;if(!n)return;
-      const regs=EX_REGIONS[ex.id]||MUSCLE_FALLBACK[ex.muscle]||[];
-      regs.forEach(r=>{out[r]=(out[r]||0)+n;(src[r]=src[r]||[]).push(ex.name+" ×"+n)});
+      const n=(s[ex.id]||[]).filter(setDone).length;if(!n)return;
+      const d=exDetail(ex),tag=ex.name+" ×"+n;
+      d.forEach(r=>{detail[r]=(detail[r]||0)+n;(src[r]=src[r]||[]).push(tag)});
+      Object.keys(COARSE_SUBS).forEach(c=>{
+        if(COARSE_SUBS[c].some(x=>d.indexOf(x)>=0)){
+          coarse[c]=(coarse[c]||0)+n;(csrc[c]=csrc[c]||[]).push(tag)}
+      });
     });
   }));
-  return detail?{sets:out,src:src}:out;
+  _wsCache={detail,coarse,src,csrc};_wsKey=key;return _wsCache;
 }
+function regionSets(detail){const w=weekSets();return detail?{sets:w.coarse,src:w.csrc}:w.coarse}
+function armSets(){const w=weekSets();return{sets:w.detail,src:w.src}}
+
 /* which muscles each view can actually show */
 function viewRegions(v){
   return [...new Set((BODY[v].match(/data-r="(\w+)"/g)||[]).map(x=>x.slice(8,-1)))].filter(r=>r!=="head"&&r!=="neck");
@@ -1539,7 +1612,7 @@ function heatColor(n){
 const BODY={
 front:`<ellipse data-r="head" cx="100" cy="30" rx="19" ry="23"/>
 <rect x="90" y="50" width="20" height="12" rx="4" data-r="neck"/>
-<path data-r="trap" d="M78 62 L100 56 L122 62 L118 76 L82 76 Z"/>
+<path data-r="trap" d="M76 66 L88 62 L88 80 L79 80 Z"/><path data-r="trap" d="M124 66 L112 62 L112 80 L121 80 Z"/>
 <ellipse data-r="delt" cx="63" cy="88" rx="16" ry="19"/><ellipse data-r="delt" cx="137" cy="88" rx="16" ry="19"/>
 <path data-r="chest" d="M80 78 Q100 74 100 76 L100 122 Q84 124 76 108 Z"/>
 <path data-r="chest" d="M120 78 Q100 74 100 76 L100 122 Q116 124 124 108 Z"/>
@@ -1553,7 +1626,7 @@ front:`<ellipse data-r="head" cx="100" cy="30" rx="19" ry="23"/>
 <ellipse data-r="calf" cx="85" cy="345" rx="12" ry="30"/><ellipse data-r="calf" cx="115" cy="345" rx="12" ry="30"/>`,
 back:`<ellipse data-r="head" cx="100" cy="30" rx="19" ry="23"/>
 <rect x="90" y="50" width="20" height="12" rx="4" data-r="neck"/>
-<path data-r="trap" d="M74 62 L100 56 L126 62 L118 112 L100 122 L82 112 Z"/>
+<path data-r="trap" d="M74 66 L100 60 L126 66 L118 112 L100 122 L82 112 Z"/>
 <ellipse data-r="reardelt" cx="62" cy="88" rx="16" ry="19"/><ellipse data-r="reardelt" cx="138" cy="88" rx="16" ry="19"/>
 <path data-r="lat" d="M78 92 Q62 122 74 152 L96 138 L96 100 Z"/>
 <path data-r="lat" d="M122 92 Q138 122 126 152 L104 138 L104 100 Z"/>
@@ -1564,28 +1637,64 @@ back:`<ellipse data-r="head" cx="100" cy="30" rx="19" ry="23"/>
 <path data-r="glute" d="M78 196 Q76 232 98 234 L98 196 Z"/><path data-r="glute" d="M122 196 Q124 232 102 234 L102 196 Z"/>
 <path data-r="ham" d="M80 238 Q70 270 78 300 L96 300 Q98 268 97 238 Z"/>
 <path data-r="ham" d="M120 238 Q130 270 122 300 L104 300 Q102 268 103 238 Z"/>
-<ellipse data-r="calf" cx="85" cy="345" rx="13" ry="32"/><ellipse data-r="calf" cx="115" cy="345" rx="13" ry="32"/>`,
-side:`<ellipse data-r="head" cx="96" cy="30" rx="20" ry="23"/>
-<rect x="90" y="50" width="18" height="12" rx="4" data-r="neck"/>
-<path data-r="trap" d="M101 68 L121 76 L118 102 L101 94 Z"/>
-<path data-r="chest" d="M78 84 Q69 101 76 120 L90 118 L90 86 Z"/>
-<path data-r="lat" d="M118 100 Q129 126 118 152 L104 144 L104 102 Z"/>
-<path data-r="oblique" d="M82 124 Q75 160 86 198 L100 196 L100 126 Z"/>
-<path data-r="lowback" d="M116 154 Q122 176 115 198 L102 198 L102 152 Z"/>
-<path data-r="delt" d="M80 80 Q90 69 100 76 L100 108 Q84 106 79 94 Z"/>
-<path data-r="reardelt" d="M119 82 Q109 69 100 76 L100 108 Q115 106 120 94 Z"/>
-<path data-r="bi" d="M78 112 Q71 134 78 158 L90 158 L90 110 Z"/>
-<path data-r="tri" d="M102 112 Q109 134 102 158 L90 158 L90 110 Z"/>
-<path data-r="fore" d="M79 162 Q74 186 81 210 L99 210 Q106 186 101 162 Z"/>
-<path data-r="glute" d="M113 200 Q131 218 115 242 L99 238 L99 200 Z"/>
-<path data-r="quad" d="M84 214 Q76 258 84 304 L100 304 Q100 256 98 214 Z"/>
-<path data-r="ham" d="M115 244 Q121 274 113 304 L101 304 Q101 272 101 244 Z"/>
-<ellipse data-r="calf" cx="102" cy="348" rx="14" ry="31"/>`
+<ellipse data-r="calf" cx="85" cy="345" rx="13" ry="32"/><ellipse data-r="calf" cx="115" cy="345" rx="13" ry="32"/>`
 };
+BODY.side=`<ellipse data-r="head" cx="102" cy="30" rx="20" ry="23"/>
+<rect x="96" y="50" width="18" height="12" rx="4" data-r="neck"/>
+<path data-r="chest" d="M84 84 Q74 104 82 124 L98 122 L98 86 Z"/>
+<path data-r="lat" d="M116 98 Q130 126 118 154 L104 146 L104 100 Z"/>
+<path data-r="oblique" d="M86 128 Q78 164 90 200 L104 198 L104 130 Z"/>
+<path data-r="lowback" d="M118 156 Q126 178 118 200 L106 200 L106 154 Z"/>
+<path data-r="glute" d="M118 202 Q138 220 120 248 L104 244 L104 202 Z"/>
+<path data-r="quad" d="M88 216 Q78 260 88 306 L106 306 Q106 258 104 216 Z"/>
+<path data-r="ham" d="M120 250 Q128 278 118 306 L106 306 Q106 276 106 250 Z"/>
+<ellipse data-r="calf" cx="106" cy="348" rx="15" ry="32"/>
+<path data-r="trap" d="M106 68 L126 76 L123 102 L106 94 Z"/>
+<ellipse data-r="delt" cx="60" cy="94" rx="16" ry="18"/>
+<ellipse data-r="reardelt" cx="86" cy="94" rx="14" ry="17"/>
+<path data-r="bi" d="M46 116 Q39 144 47 172 L64 172 L64 114 Z"/>
+<path data-r="tri" d="M66 114 L66 172 L83 172 Q90 144 83 116 Z"/>
+<path data-r="fore" d="M44 178 Q36 214 46 250 L78 250 Q88 214 80 178 Z"/>
+<ellipse data-r="hand" cx="62" cy="268" rx="14" ry="16"/>`;
+/* ══════ direct labels with leader lines — no cross-referencing a list ══════ */
+const MAP_LABELS={
+front:[
+ ["L","Traps",70,84,72],["L","Chest",100,86,98],["L","Abs",152,100,152],
+ ["L","Obliques",188,82,186],["L","Quads",252,88,252],
+ ["R","Front delts",86,138,88],["R","Biceps",130,146,130],
+ ["R","Forearms",180,153,180],["R","Calves",344,116,344]],
+back:[
+ ["L","Traps",74,96,74],["L","Lats",116,80,120],["L","Upper back",148,100,134],
+ ["L","Lower back",178,100,170],["L","Glutes",216,88,216],["L","Hamstrings",272,88,272],
+ ["R","Rear delts",88,139,88],["R","Triceps",130,146,130],
+ ["R","Forearms",180,153,180],["R","Calves",344,116,344]],
+side:[
+ ["L","Front delt",84,50,92],["L","Biceps",140,52,142],["L","Forearms",212,58,212],
+ ["R","Traps",70,116,80],["R","Rear delt",96,96,94],["R","Triceps",140,80,142],
+ ["R","Body (muted)",250,110,250]],
+arms:[
+ ["L","Side delt",100,44,102],["L","Front delt",126,44,120],["L","Biceps long",160,38,164],
+ ["L","Biceps short",186,64,186],["L","Brachialis",216,40,214],["L","Flexors",272,46,272],
+ ["R","Rear delt",100,160,102],["R","Triceps long",160,136,164],["R","Tri lateral",186,164,186],
+ ["R","Tri medial",216,166,214],["R","Extensors",272,160,272],
+ ["R","Upper traps",62,118,84],["R","Mid traps",30,116,110]]};
+function mapLabels(view,muted){
+  const L=MAP_LABELS[view]||[];
+  const LX=30,RX=170;
+  return L.map(([side,txt,ly,px,py])=>{
+    if(muted&&muted.some(m=>txt.toLowerCase().indexOf(m)>=0))return"";
+    const left=side==="L";
+    const tx=left?LX:RX, lx1=left?LX+4:RX-4;
+    return`<line x1="${lx1}" y1="${ly-3}" x2="${px}" y2="${py}" stroke="#3a3f4d" stroke-width="1"/>`+
+      `<circle cx="${px}" cy="${py}" r="1.6" fill="#5a6070"/>`+
+      `<text x="${tx}" y="${ly}" font-size="9.5" fill="#9aa1b2" font-family="IBM Plex Mono" text-anchor="${left?"end":"start"}">${txt}</text>`;
+  }).join("");
+}
 let BODY_VIEW="front";
 function setBodyView(v){BODY_VIEW=v;renderBodyMap()}
 function renderBodyMap(){
   const el=$("bodymap");if(!el)return;
+  if(BODY_VIEW!=="arms"&&!BODY[BODY_VIEW])BODY_VIEW="front";
   if(BODY_VIEW==="arms"){
     el.innerHTML=`<div class="seg" style="margin-bottom:12px">${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>`
       +renderArmMap()
@@ -1593,15 +1702,23 @@ function renderBodyMap(){
     return;
   }
   const det=regionSets(true),sets=det.sets;
+  // on the side view only the arm/shoulder chain is coloured — torso stays neutral
+  // side view = arm focus: the arm chain keeps full colour and gains a bright
+  // outline; everything else is muted so the arm reads clearly on top of it.
+  const FOCUS=BODY_VIEW==="side"?["delt","reardelt","bi","tri","fore","trap"]:null;
+  const MUTE=BODY_VIEW==="side"?["chest","lat","upback","lowback","oblique","glute","quad","ham","calf"]:[];
   let svg=BODY[BODY_VIEW];
   // inject attributes only — never a ">" — or the shape's own cx/cy fall outside the tag
   svg=svg.replace(/data-r="(\w+)"/g,(m,r)=>{
-    if(r==="head"||r==="neck")return `fill="#1c2029" stroke="#2e3342" stroke-width="1.5"`;
+    if(r==="hand")return `fill="#1a1d26" stroke="#3a4050" stroke-width="2"`;
+    if(r==="head"||r==="neck"||MUTE.indexOf(r)>=0)return `fill="#161920" stroke="#262a33" stroke-width="1.2"`;
     const n=sets[r]||0;
+    if(FOCUS&&FOCUS.indexOf(r)>=0)
+      return `fill="${heatColor(n)}" stroke="#eef0f4" stroke-width="2.6" stroke-linejoin="round" opacity="${n?1:.6}" aria-label="${REGION_NAME[r]||r}: ${n} sets"`;
     return `fill="${heatColor(n)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}" aria-label="${REGION_NAME[r]||r}: ${n} sets"`;
   });
   const shown=Object.keys(sets).sort((a,b)=>sets[b]-sets[a]);
-  const rows=viewRegions(BODY_VIEW).map(r=>{
+  const rows=viewRegions(BODY_VIEW).filter(r=>MUTE.indexOf(r)<0&&r!=="hand").map(r=>{
     const n=sets[r]||0;
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${REGION_NAME[r]||r}</div>
@@ -1612,11 +1729,11 @@ function renderBodyMap(){
   el.innerHTML=`<div class="seg" style="margin-bottom:12px">
       ${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}
     </div>
-    <svg viewBox="0 0 200 390" style="width:100%;max-height:340px;display:block" role="img" aria-label="Muscle heat map, ${BODY_VIEW} view">${svg}</svg>
+    <svg viewBox="-72 0 344 396" style="width:100%;max-height:420px;display:block" role="img" aria-label="Muscle heat map, ${BODY_VIEW} view">${svg}${mapLabels(BODY_VIEW)}</svg>
     <div class="row mt12" style="flex-wrap:wrap;gap:6px;justify-content:center">
       ${legend.map(l=>`<span class="pill" style="border-color:${l[1]};color:${l[1]}">${l[0]} ${l[2]}</span>`).join("")}
     </div>
-    <div class="tiny mt12" style="line-height:1.6"><b style="color:var(--muted)">${BODY_VIEW==="back"?"Back view shows rear delts, triceps and lats":BODY_VIEW==="front"?"Front view shows front delts, biceps and quads":"Side view shows delts, lats and legs"}</b> — the same limb is a different muscle from the other side, so colours differ by view.</div>
+    <div class="tiny mt12" style="line-height:1.6"><b style="color:var(--muted)">${BODY_VIEW==="back"?"Back view shows rear delts, triceps and lats":BODY_VIEW==="front"?"Front view shows front delts, biceps and quads":"Side view: arm chain outlined in white, body muted behind it"}</b> — the same limb is a different muscle from front and back, so the colours differ between views.</div>
     <div class="sec-title mt16" style="font-size:9.5px">What fed each muscle</div>
     ${rows||`<div class="empty" style="padding:14px">No completed sets this week yet. Sets only count once you tap the ✓ next to them.</div>`}`;
 }
@@ -2021,22 +2138,6 @@ crunch:[],plank:[],hollow:[],lmtwist:[],calf4:[],hipthrust:[],pullthr:[]};
 const SUB_OF={trap:["trap_up","trap_mid"],delt:["delt_front","delt_side"],reardelt:["delt_rear"],
 bi:["bi_long","bi_short","brach"],tri:["tri_long","tri_lat","tri_med"],fore:["fore_flex","fore_ext"]};
 
-function armSets(){
-  const out={},src={},wk=weekDates();
-  DAY_ORDER.forEach(dayId=>wk.forEach(date=>{
-    const s=getSess(dayId,date);if(!s)return;
-    (DAYS[dayId].exercises||[]).forEach(ex=>{
-      const n=(s[ex.id]||[]).filter(x=>x&&x.done).length;if(!n)return;
-      let regs=ARM_MAP[ex.id];
-      if(!regs){ // custom exercise — expand its coarse regions
-        regs=[];((EX_REGIONS[ex.id]||MUSCLE_FALLBACK[ex.muscle]||[]).forEach(r=>{
-          (SUB_OF[r]||[]).forEach(x=>regs.push(x))}));
-      }
-      regs.forEach(r=>{out[r]=(out[r]||0)+n;(src[r]=src[r]||[]).push(ex.name+" ×"+n)});
-    });
-  }));
-  return{sets:out,src:src};
-}
 /* Two arms side by side: left shows the front, right shows the back */
 const ARM_SVG=`
 <path data-r="trap_up" d="M74 74 L100 62 L126 74 L120 96 L80 96 Z"/>
@@ -2054,7 +2155,7 @@ const ARM_SVG=`
 <path data-r="fore_ext" d="M134 232 Q126 274 136 314 L164 314 Q172 274 164 232 Z"/>
 <ellipse cx="52" cy="332" rx="15" ry="17" fill="#1c2029" stroke="#2e3342" stroke-width="1.5"/>
 <ellipse cx="150" cy="332" rx="15" ry="17" fill="#1c2029" stroke="#2e3342" stroke-width="1.5"/>`;
-const ARM_LABELS=[[52,50,"FRONT OF ARM"],[150,50,"BACK OF ARM"],[100,352,"Traps sit across the top of the shoulders"]];
+const ARM_LABELS=[[52,20,"FRONT OF ARM"],[150,20,"BACK OF ARM"]];
 
 function renderArmMap(){
   const det=armSets(),sets=det.sets;
@@ -2062,14 +2163,14 @@ function renderArmMap(){
     const n=sets[r]||0;
     return `fill="${heatColor(n)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}"`;
   });
-  let labels=ARM_LABELS.map(l=>`<text x="${l[0]}" y="${l[1]}" font-size="${l[1]>340?8:9}" fill="#8a90a0" font-family="IBM Plex Mono" text-anchor="middle" letter-spacing=".08em">${l[2]}</text>`).join("");
+  let labels=ARM_LABELS.map(l=>`<text x="${l[0]}" y="${l[1]}" font-size="9" fill="#8a90a0" font-family="IBM Plex Mono" text-anchor="middle" letter-spacing=".08em">${l[2]}</text>`).join("");
   const order=["delt_front","delt_side","delt_rear","bi_long","bi_short","brach","tri_long","tri_lat","tri_med","fore_flex","fore_ext","trap_up","trap_mid"];
   const rows=order.map(r=>{const n=sets[r]||0;
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${SUB_NAME[r]}</div>
       <div class="tiny">${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
       <div class="hist-val" style="color:${heatColor(n)}">${n}</div></div>`}).join("");
-  return`<svg viewBox="0 0 200 362" style="width:100%;max-height:400px;display:block" role="img" aria-label="Detailed arm and shoulder heat map">${svg}${labels}</svg>${rows}`;
+  return`<svg viewBox="-72 0 344 372" style="width:100%;max-height:430px;display:block" role="img" aria-label="Detailed arm and shoulder heat map">${svg}${labels}${mapLabels("arms")}</svg>${rows}`;
 }
 
 /* ══════ TINY BODY ICON per exercise card ══════ */
@@ -2287,6 +2388,151 @@ function fbCard(){
       ?`⚠️ Fitbit retires this API on <b style="color:var(--ember)">30 Sep 2026</b> — about ${left} days away. Your synced steps stay in Forge; only the live connection stops.`
       :`⚠️ Fitbit's legacy API shut down on 30 Sep 2026. This connection no longer syncs — your existing steps are unaffected.`}</div>
     <div class="tiny mt8">Your edits always win: a day you typed by hand is never overwritten by a sync.</div>`;
+}
+
+/* ══════════ REVIEW ENGINE: weekly report, balance, stalls, PR timeline ══════════ */
+const SET_TARGET={chest:[10,20],lat:[10,20],upback:[8,18],delt:[10,20],reardelt:[6,16],
+bi:[8,16],tri:[8,16],quad:[10,20],ham:[8,18],glute:[8,18],calf:[8,16],abs:[6,16],
+trap:[6,16],fore:[4,14],lowback:[4,12],oblique:[4,12]};
+
+function weekStats(off){
+  const wk=weekDates(off||0);let sets=0,ton=0,sess=0;const byEx={};
+  DAY_ORDER.forEach(dayId=>wk.forEach(date=>{
+    const s=getSess(dayId,date);if(!s)return;let any=false;
+    (DAYS[dayId].exercises||[]).forEach(ex=>{
+      (s[ex.id]||[]).forEach(x=>{if(setDone(x)){sets++;any=true;if(x.w&&x.r)ton+=(+x.w)*(+x.r)}});
+      const b=bestSet(dayId,date,ex.id);
+      if(b&&b.w&&b.r){const e=e1rm(b.w,b.r);if(!byEx[ex.id]||e>byEx[ex.id])byEx[ex.id]=e}
+    });
+    if(any)sess++;
+  }));
+  return{sets,ton:Math.round(ton),sess,byEx};
+}
+function delta(a,b){return b?Math.round((a-b)/b*100):(a?100:0)}
+function arrow(n){return n>0?`<span style="color:var(--pos)">▲ ${n}%</span>`:n<0?`<span style="color:var(--neg)">▼ ${Math.abs(n)}%</span>`:`<span style="color:var(--dim)">no change</span>`}
+
+/* how many sessions since this lift last set an all-time best */
+function sessionsSincePR(exId){
+  const h=exHistory(exId);if(h.length<2)return null;
+  let best=-1,bi=0;h.forEach((x,i)=>{if(x.e>best){best=x.e;bi=i}});
+  return{since:h.length-1-bi,best,total:h.length,last:h[h.length-1]};
+}
+function stallReport(){
+  const out=[];
+  DAY_ORDER.forEach(d=>(DAYS[d].exercises||[]).forEach(ex=>{
+    if(ex.timed)return;
+    const r=sessionsSincePR(ex.id);
+    if(r&&r.total>=3&&r.since>=3)out.push({ex,...r});
+  }));
+  return out.sort((a,b)=>b.since-a.since);
+}
+function balanceReport(){
+  const c=regionSets(),out={under:[],over:[],ok:[]};
+  Object.keys(SET_TARGET).forEach(r=>{
+    const n=c[r]||0,[lo,hi]=SET_TARGET[r];
+    const item={r,n,lo,hi,name:REGION_NAME[r]||r};
+    if(n<lo)out.under.push(item);else if(n>hi)out.over.push(item);else out.ok.push(item);
+  });
+  out.under.sort((a,b)=>(a.n/a.lo)-(b.n/b.lo));
+  return out;
+}
+/* mini loaded barbell for a PR value */
+function prBar(kg,peak){
+  const pct=Math.max(.08,Math.min(1,kg/(peak||kg||1)));
+  const plates=Math.max(1,Math.round(pct*5));
+  let s=`<svg viewBox="0 0 120 22" width="110" height="20" aria-hidden="true"><rect x="6" y="9" width="108" height="3" rx="1.5" fill="#31353f"/>`;
+  for(let i=0;i<5;i++){
+    const on=i<plates,h=17-i*2,y=10.5-h/2;
+    s+=`<rect x="${26+i*11}" y="${y}" width="6" height="${h}" rx="1.5" fill="${on?"#e3ff3f":"#232733"}"/>`;
+    s+=`<rect x="${88-i*11}" y="${y}" width="6" height="${h}" rx="1.5" fill="${on?"#e3ff3f":"#232733"}"/>`;
+  }
+  return s+`</svg>`;
+}
+function renderReview(){
+  const now=weekStats(0),prev=weekStats(-1);
+  const wk=weekDates(),wkStart=wk[0],wkEnd=wk[6];
+  // lifts up / down vs last week
+  const up=[],down=[];
+  Object.keys(now.byEx).forEach(id=>{
+    const a=now.byEx[id],b=prev.byEx[id];if(!b)return;
+    const ex=findEx(id);if(!ex)return;
+    if(a>b+0.4)up.push({ex,a,b});else if(a<b-0.4)down.push({ex,a,b});
+  });
+  up.sort((x,y)=>(y.a-y.b)-(x.a-x.b));down.sort((x,y)=>(x.a-x.b)-(y.a-y.b));
+  const prsThisWeek=DB.prs.filter(p=>p.date>=wkStart&&p.date<=wkEnd);
+  return`<div class="card mb12">
+    <div class="chart-kick">Week of ${fmtDate(wkStart)} vs last week</div>
+    <div class="kpi3 mt12">
+      <div class="kpi"><div class="kpi-l">Sessions</div><div class="kpi-v">${now.sess}</div><div class="tiny mt8">${arrow(delta(now.sess,prev.sess))}</div></div>
+      <div class="kpi"><div class="kpi-l">Sets</div><div class="kpi-v">${now.sets}</div><div class="tiny mt8">${arrow(delta(now.sets,prev.sets))}</div></div>
+      <div class="kpi"><div class="kpi-l">Tonnage</div><div class="kpi-v">${(now.ton/1000).toFixed(1)}<small>t</small></div><div class="tiny mt8">${arrow(delta(now.ton,prev.ton))}</div></div>
+    </div>
+    ${prsThisWeek.length?`<div class="pr-flash" style="display:block;margin-top:12px">🏆 ${prsThisWeek.length} personal ${prsThisWeek.length===1?"record":"records"} this week</div>`:""}
+    ${up.length?`<div class="sec-title mt16" style="font-size:9.5px">Moving up</div>${up.slice(0,5).map(x=>
+      `<div class="hist-row" style="padding:7px 0;border-color:#1a1d26"><div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:500">${esc(x.ex.name)}</div><div class="tiny">${x.b} → ${x.a} kg e1RM</div></div><div class="hist-val" style="color:var(--pos)">+${(x.a-x.b).toFixed(1)}</div></div>`).join("")}`:""}
+    ${down.length?`<div class="sec-title mt16" style="font-size:9.5px">Slipped back</div>${down.slice(0,4).map(x=>
+      `<div class="hist-row" style="padding:7px 0;border-color:#1a1d26"><div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:500">${esc(x.ex.name)}</div><div class="tiny">${x.b} → ${x.a} kg e1RM</div></div><div class="hist-val" style="color:var(--neg)">${(x.a-x.b).toFixed(1)}</div></div>`).join("")}`:""}
+    ${!up.length&&!down.length?`<div class="tiny mt12">Train the same lifts two weeks running and Forge will compare them here.</div>`:""}
+  </div>`;
+}
+function renderBalance(){
+  const b=balanceReport();
+  if(!b.under.length&&!b.over.length)
+    return`<div class="card mb12"><div class="row" style="gap:10px"><div style="font-size:20px">✓</div>
+      <div><div style="font-size:13px;font-weight:600;color:var(--pos)">Balanced week</div>
+      <div class="tiny mt8">Every muscle group is inside its weekly set range.</div></div></div></div>`;
+  const row=(x,kind)=>`<div class="hist-row" style="padding:9px 0;border-color:#1a1d26">
+    <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:500">${x.name}</div>
+    <div class="tiny">${kind==="under"?`${x.n} sets · aim for ${x.lo}–${x.hi}`:`${x.n} sets · above the ${x.hi} upper end`}</div></div>
+    <div class="hist-val" style="color:${kind==="under"?"var(--sky)":"var(--ember)"}">${x.n}</div></div>`;
+  return`<div class="card mb12">
+    ${b.under.length?`<div class="sec-title" style="font-size:9.5px">Needs more work</div>${b.under.slice(0,6).map(x=>row(x,"under")).join("")}`:""}
+    ${b.over.length?`<div class="sec-title mt16" style="font-size:9.5px">Possibly overcooked</div>${b.over.slice(0,4).map(x=>row(x,"over")).join("")}`:""}
+    <div class="tiny mt12">Ranges are the usual evidence-based weekly targets for growth. Early in a week these will read low — it's the end-of-week picture that matters.</div></div>`;
+}
+function renderStalls(){
+  const st=stallReport();
+  if(!st.length)return`<div class="card mb12"><div class="row" style="gap:10px"><div style="font-size:20px">✓</div>
+    <div><div style="font-size:13px;font-weight:600;color:var(--pos)">Nothing stalled</div>
+    <div class="tiny mt8">Every lift has hit a best within its last three sessions.</div></div></div></div>`;
+  const deload=st.filter(s=>s.since>=4).length>=2;
+  return`<div class="card mb12">
+    ${deload?`<div class="warm-card" style="margin:0 0 12px;background:#2a1508;border-color:#4a2a10;border-left-color:var(--ember)">
+      <div class="warm-title" style="color:var(--ember)">Consider a deload week</div>
+      <div class="warm-desc">${st.filter(s=>s.since>=4).length} lifts haven't set a best in four or more sessions. That's the classic sign of accumulated fatigue rather than lack of effort. Try one week at roughly 60% of your usual weights and sets, then come back and push.</div></div>`:""}
+    ${st.slice(0,6).map(s=>`<div class="hist-row" style="padding:9px 0;border-color:#1a1d26">
+      <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:500">${esc(s.ex.name)}</div>
+      <div class="tiny">${s.since} sessions since your ${s.best} kg best · last ${s.last.w}×${s.last.r}</div></div>
+      <div class="hist-val" style="color:${s.since>=4?"var(--ember)":"var(--muted)"}">${s.since}</div></div>`).join("")}
+    <div class="tiny mt12">Stalling isn't failure — it usually means fatigue, sleep or calories, not effort. On a cut, holding a lift steady is a win.</div></div>`;
+}
+function renderPRTimeline(){
+  const prs=[...DB.prs].sort((a,b)=>a.date<b.date?1:-1);
+  if(!prs.length)return`<div class="card"><div class="empty">PRs land here automatically the moment you beat a previous best.</div></div>`;
+  const peak=Math.max(...prs.map(p=>+p.val||0));
+  return`<div class="card">${prs.slice(0,30).map(p=>{
+    const ex=findEx(p.exId);
+    return`<div style="padding:10px 0;border-bottom:1px solid #1a1d26">
+      <div class="spread" style="align-items:baseline"><div style="font-size:12.5px;font-weight:600;min-width:0;flex:1">${esc(ex?ex.name:p.exId)}</div>
+      <div class="hist-val" style="color:var(--volt);flex:0 0 auto">${p.val} ${p.type==="e1rm"?"kg":"kg"}</div></div>
+      <div class="row mt8" style="gap:10px">${prBar(+p.val||0,peak)}<div class="tiny">${fmtDate(p.date)} · ${p.type==="e1rm"?"est. max":"top set"}</div></div>
+    </div>`}).join("")}
+    <div class="tiny mt12">${prs.length} records, newest first. Longer bar = heavier relative to your best ever.</div></div>`;
+}
+
+function homeAlert(){
+  const el=$("home-alert");if(!el)return;
+  const st=stallReport().filter(s=>s.since>=4),b=balanceReport();
+  let h="";
+  if(st.length>=2)h=`<div class="card" style="border-color:#4a2a10;background:#1c1108" onclick="go('progress')">
+    <div class="row" style="gap:10px"><div style="font-size:19px">⚠️</div><div style="flex:1;min-width:0">
+    <div style="font-size:13px;font-weight:600;color:var(--ember)">${st.length} lifts have stalled</div>
+    <div class="tiny mt8">Four or more sessions without a best. A deload week may be due — tap for detail.</div></div></div></div>`;
+  else if(b.under.length){const u=b.under[0];
+    h=`<div class="card" onclick="go('progress')"><div class="row" style="gap:10px"><div style="font-size:19px">🎯</div>
+    <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--sky)">${u.name} is light this week</div>
+    <div class="tiny mt8">${u.n} sets so far, ${u.lo}–${u.hi} is the usual range${b.under.length>1?` · ${b.under.length-1} other groups also low`:""}</div></div></div></div>`}
+  el.innerHTML=h;
 }
 
 /* ---------- INIT ---------- */
