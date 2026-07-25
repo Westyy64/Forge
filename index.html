@@ -1555,33 +1555,37 @@ lowback:"Lower back",glute:"Glutes",quad:"Quads",ham:"Hamstrings",calf:"Calves"}
 /* ══════ ONE muscle mapping, used by every view ══════
    Detailed regions are the truth; the coarse body map aggregates from them,
    so a muscle can never read differently on two screens.                    */
+/* Each lift lists the muscles it PRIMARILY trains and those it only assists.
+   A primary set counts as 1, an assisting set as 0.5 — standard fractional
+   set counting. Without it, five exercises that merely involve the traps
+   made them look harder-trained than four dedicated shrug sets.          */
 const EX_MUSCLES={
-bench:["chest","delt_front","tri_lat","tri_med"],
-incline:["chest","delt_front","tri_lat","tri_med"],
-shoulder:["delt_front","delt_side","tri_long","tri_lat"],
-facepull:["delt_rear","trap_mid","upback"],
-pushdown:["tri_lat","tri_med"],
-lateral:["delt_side"],
-chestfly:["chest","delt_front"],
-hang:["fore_flex","fore_ext"],hang3:["fore_flex","fore_ext"],
-squat:["quad","glute","abs"],
-lunge:["quad","glute"],
-rdl:["ham","glute","lowback"],
-pullthr:["glute","ham"],
-farmers:["fore_flex","fore_ext","trap_up","abs"],
-crunch:["abs"],plank:["abs"],hollow:["abs"],
-pullup:["lat","bi_long","brach","delt_rear"],
-bbrow:["lat","upback","bi_long","brach","trap_mid","delt_rear"],
-srow:["upback","lat","bi_short","brach","trap_mid"],
-lmrow:["lat","upback","bi_long","brach","trap_mid"],
-curl:["bi_short","bi_long","brach"],
-shrug:["trap_up","fore_flex"],
-wrist:["fore_flex","fore_ext"],
-deadlift:["ham","glute","lowback","trap_up","fore_flex"],
-rackpull:["trap_up","lowback","glute","fore_flex"],
-hipthrust:["glute","ham"],
-calf4:["calf"],
-lmtwist:["oblique","abs"]};
+bench:{p:["chest"],s:["delt_front","tri_lat","tri_med"]},
+incline:{p:["chest"],s:["delt_front","tri_lat","tri_med"]},
+shoulder:{p:["delt_front","delt_side"],s:["tri_long","tri_lat"]},
+facepull:{p:["delt_rear"],s:["trap_mid","upback"]},
+pushdown:{p:["tri_lat","tri_med"],s:[]},
+lateral:{p:["delt_side"],s:[]},
+chestfly:{p:["chest"],s:["delt_front"]},
+hang:{p:["fore_flex","fore_ext"],s:[]},hang3:{p:["fore_flex","fore_ext"],s:[]},
+squat:{p:["quad","glute"],s:["abs","lowback"]},
+lunge:{p:["quad","glute"],s:[]},
+rdl:{p:["ham","glute"],s:["lowback"]},
+pullthr:{p:["glute","ham"],s:[]},
+farmers:{p:["fore_flex","fore_ext"],s:["trap_up","abs"]},
+crunch:{p:["abs"],s:[]},plank:{p:["abs"],s:[]},hollow:{p:["abs"],s:[]},
+pullup:{p:["lat"],s:["bi_long","brach","delt_rear"]},
+bbrow:{p:["lat","upback"],s:["bi_long","brach","trap_mid","delt_rear"]},
+srow:{p:["upback","lat"],s:["bi_short","brach","trap_mid"]},
+lmrow:{p:["lat","upback"],s:["bi_long","brach","trap_mid"]},
+curl:{p:["bi_short","bi_long","brach"],s:[]},
+shrug:{p:["trap_up"],s:["fore_flex"]},
+wrist:{p:["fore_flex","fore_ext"],s:[]},
+deadlift:{p:["ham","glute","lowback"],s:["trap_up","fore_flex"]},
+rackpull:{p:["trap_up","lowback"],s:["glute","fore_flex"]},
+hipthrust:{p:["glute"],s:["ham"]},
+calf4:{p:["calf"],s:[]},
+lmtwist:{p:["oblique"],s:["abs"]}};
 const COARSE_SUBS={chest:["chest"],delt:["delt_front","delt_side"],reardelt:["delt_rear"],
 bi:["bi_long","bi_short","brach"],tri:["tri_long","tri_lat","tri_med"],fore:["fore_flex","fore_ext"],
 trap:["trap_up","trap_mid"],lat:["lat"],upback:["upback"],lowback:["lowback"],abs:["abs"],
@@ -1591,7 +1595,19 @@ oblique:["oblique"],glute:["glute"],quad:["quad"],ham:["ham"],calf:["calf"]};
 function setDone(x){return !!(x&&(x.done||((+x.w||0)>0&&(+x.r||0)>0)||(!!x.done)))}
 function exDetail(ex){
   if(EX_MUSCLES[ex.id])return EX_MUSCLES[ex.id];
-  const out=[];(MUSCLE_FALLBACK[ex.muscle]||[]).forEach(r=>(COARSE_SUBS[r]||[r]).forEach(x=>out.push(x)));
+  const p=[];(MUSCLE_FALLBACK[ex.muscle]||[]).forEach(r=>(COARSE_SUBS[r]||[r]).forEach(x=>p.push(x)));
+  return{p,s:[]};
+}
+const HALF=0.5;
+/* muscles that set a personal best this week */
+function prMusclesThisWeek(){
+  const wk=weekDates(),out={};
+  DB.prs.filter(p=>p.date>=wk[0]&&p.date<=wk[6]).forEach(p=>{
+    const ex=findEx(p.exId);if(!ex)return;
+    const d=exDetail(ex);
+    d.p.forEach(r=>out[r]=1);
+    Object.keys(COARSE_SUBS).forEach(c=>{if(COARSE_SUBS[c].some(x=>d.p.indexOf(x)>=0))out[c]=1});
+  });
   return out;
 }
 let _wsCache=null,_wsKey="";
@@ -1603,11 +1619,14 @@ function weekSets(off){
     const s=getSess(dayId,date);if(!s)return;
     (DAYS[dayId].exercises||[]).forEach(ex=>{
       const n=(s[ex.id]||[]).filter(setDone).length;if(!n)return;
-      const d=exDetail(ex),tag=ex.name+" ×"+n;
-      d.forEach(r=>{detail[r]=(detail[r]||0)+n;(src[r]=src[r]||[]).push(tag)});
+      const d=exDetail(ex);
+      const add=(bag,srcbag,r,v,label)=>{bag[r]=(bag[r]||0)+v;(srcbag[r]=srcbag[r]||[]).push(label)};
+      d.p.forEach(r=>add(detail,src,r,n,ex.name+" ×"+n));
+      d.s.forEach(r=>add(detail,src,r,n*HALF,ex.name+" ×"+n+" (assists)"));
       Object.keys(COARSE_SUBS).forEach(c=>{
-        if(COARSE_SUBS[c].some(x=>d.indexOf(x)>=0)){
-          coarse[c]=(coarse[c]||0)+n;(csrc[c]=csrc[c]||[]).push(tag)}
+        const subs=COARSE_SUBS[c];
+        if(subs.some(x=>d.p.indexOf(x)>=0))add(coarse,csrc,c,n,ex.name+" ×"+n);
+        else if(subs.some(x=>d.s.indexOf(x)>=0))add(coarse,csrc,c,n*HALF,ex.name+" ×"+n+" (assists)");
       });
     });
   }));
@@ -1722,7 +1741,7 @@ function renderBodyMap(){
       +`<div class="tiny mt12">Each head shown separately — curls hit the short head hardest, rows and pulldowns the long head. Same colour scale as the full body.</div>`;
     return;
   }
-  const det=regionSets(true),sets=det.sets;
+  const det=regionSets(true),sets=det.sets,prm=prMusclesThisWeek();
   // on the side view only the arm/shoulder chain is coloured — torso stays neutral
   // side view = arm focus: the arm chain keeps full colour and gains a bright
   // outline; everything else is muted so the arm reads clearly on top of it.
@@ -1733,16 +1752,17 @@ function renderBodyMap(){
   svg=svg.replace(/data-r="(\w+)"/g,(m,r)=>{
     if(r==="hand")return `fill="#1a1d26" stroke="#3a4050" stroke-width="2"`;
     if(r==="head"||r==="neck"||MUTE.indexOf(r)>=0)return `fill="#161920" stroke="#262a33" stroke-width="1.2"`;
-    const n=sets[r]||0;
+    const n=Math.round((sets[r]||0)*10)/10;
+    const pb=prm[r];
     if(FOCUS&&FOCUS.indexOf(r)>=0)
-      return `fill="${heatColor(n)}" stroke="#eef0f4" stroke-width="2.6" stroke-linejoin="round" opacity="${n?1:.6}" aria-label="${REGION_NAME[r]||r}: ${n} sets"`;
-    return `fill="${heatColor(n)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}" aria-label="${REGION_NAME[r]||r}: ${n} sets"`;
+      return `fill="${heatColor(n)}" stroke="${pb?"#e3ff3f":"#eef0f4"}" stroke-width="${pb?3.2:2.6}" stroke-linejoin="round" opacity="${n?1:.6}" aria-label="${REGION_NAME[r]||r}: ${n} sets${pb?", PB this week":""}"`;
+    return `fill="${heatColor(n)}" stroke="${pb?"#eef0f4":"#0d0f14"}" stroke-width="${pb?2.4:1.5}" stroke-linejoin="round" opacity="${n?1:.5}" aria-label="${REGION_NAME[r]||r}: ${n} sets${pb?", PB this week":""}"`;
   });
   const shown=Object.keys(sets).sort((a,b)=>sets[b]-sets[a]);
   const rows=viewRegions(BODY_VIEW).filter(r=>MUTE.indexOf(r)<0&&r!=="hand").map(r=>{
-    const n=sets[r]||0;
+    const n=Math.round((sets[r]||0)*10)/10;
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
-      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${REGION_NAME[r]||r}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${REGION_NAME[r]||r}${prm[r]?' <span class="tag tag-c">PB</span>':""}</div>
       <div class="tiny">${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
       <div class="hist-val" style="color:${heatColor(n)}">${n}</div></div>`;
   }).join("");
@@ -1755,6 +1775,7 @@ function renderBodyMap(){
       ${legend.map(l=>`<span class="pill" style="border-color:${l[1]};color:${l[1]}">${l[0]} ${l[2]}</span>`).join("")}
     </div>
     <div class="tiny mt12" style="line-height:1.6"><b style="color:var(--muted)">${BODY_VIEW==="back"?"Back view shows rear delts, triceps and lats":BODY_VIEW==="front"?"Front view shows front delts, biceps and quads":"Side view: arm chain outlined in white, body muted behind it"}</b> — the same limb is a different muscle from front and back, so the colours differ between views.</div>
+    <div class="tiny mt8" style="line-height:1.6">Sets are counted <b style="color:var(--muted)">fractionally</b>: a lift that directly trains a muscle scores 1, one that merely assists scores 0.5. A white outline marks a muscle you set a <b style="color:var(--volt)">PB</b> in this week.</div>
     <div class="sec-title mt16" style="font-size:9.5px">What fed each muscle</div>
     ${rows||`<div class="empty" style="padding:14px">No completed sets this week yet. Sets only count once you tap the ✓ next to them.</div>`}`;
 }
@@ -2181,12 +2202,12 @@ const ARM_LABELS=[[52,20,"FRONT OF ARM"],[150,20,"BACK OF ARM"]];
 function renderArmMap(){
   const det=armSets(),sets=det.sets;
   let svg=ARM_SVG.replace(/data-r="(\w+)"/g,(m,r)=>{
-    const n=sets[r]||0;
+    const n=Math.round((sets[r]||0)*10)/10;
     return `fill="${heatColor(n)}" stroke="#0d0f14" stroke-width="1.5" opacity="${n?1:.5}"`;
   });
   let labels=ARM_LABELS.map(l=>`<text x="${l[0]}" y="${l[1]}" font-size="9" fill="#8a90a0" font-family="IBM Plex Mono" text-anchor="middle" letter-spacing=".08em">${l[2]}</text>`).join("");
   const order=["delt_front","delt_side","delt_rear","bi_long","bi_short","brach","tri_long","tri_lat","tri_med","fore_flex","fore_ext","trap_up","trap_mid"];
-  const rows=order.map(r=>{const n=sets[r]||0;
+  const rows=order.map(r=>{const n=Math.round((sets[r]||0)*10)/10;
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${SUB_NAME[r]}</div>
       <div class="tiny">${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
@@ -2450,7 +2471,7 @@ function stallReport(){
 function balanceReport(){
   const c=regionSets(),out={under:[],over:[],ok:[]};
   Object.keys(SET_TARGET).forEach(r=>{
-    const n=c[r]||0,[lo,hi]=SET_TARGET[r];
+    const n=Math.round((c[r]||0)*10)/10,[lo,hi]=SET_TARGET[r];
     const item={r,n,lo,hi,name:REGION_NAME[r]||r};
     if(n<lo)out.under.push(item);else if(n>hi)out.over.push(item);else out.ok.push(item);
   });
