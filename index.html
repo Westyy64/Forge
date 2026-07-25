@@ -1673,14 +1673,15 @@ function targetFor(r){
     Object.keys(COARSE_SUBS).forEach(c=>COARSE_SUBS[c].forEach(x=>SUB_PARENT[x]=c));
   return SET_TARGET[SUB_PARENT[r]]||null;
 }
+const HEAT=["#3b82f6","#22c55e","#f59e0b","#a855f7","#ef4444"];  // none·under·on target·at limit·over
 function heatColor(n,r){
-  if(!n)return"#2b4a7a";
+  if(!n)return HEAT[0];
   const t=r?targetFor(r):null;
-  if(!t)return n<5?"#2f9e63":n<10?"#a8c62c":n<15?"#e8a02a":"#e0453f";
-  if(n<t[0])return"#2f9e63";
-  if(n<=t[1])return"#a8c62c";
-  if(n<=t[1]*1.25)return"#e8a02a";
-  return"#e0453f";
+  if(!t)return n<5?HEAT[1]:n<10?HEAT[2]:n<15?HEAT[3]:HEAT[4];
+  if(n<t[0])return HEAT[1];
+  if(n<=t[1])return HEAT[2];
+  if(n<=t[1]*1.25)return HEAT[3];
+  return HEAT[4];
 }
 function heatLabel(n,r){
   if(!n)return"none";
@@ -1777,10 +1778,7 @@ function renderBodyMap(){
   if(BODY_VIEW!=="arms"&&!BODY[BODY_VIEW])BODY_VIEW="front";
   if(BODY_VIEW==="arms"){
     el.innerHTML=`<div class="seg" style="margin-bottom:12px">${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>`
-      +renderArmMap()
-      +`<div class="row mt12" style="flex-wrap:wrap;gap:6px;justify-content:center">
-      ${[["#2b4a7a","none"],["#2a5c46","well behind"],["#2f9e63","behind"],["#a8c62c","solid"],["#e3ff3f","most worked"]].map(l=>`<span class="pill" style="border-color:${l[0]};color:${l[0]}">${l[1]}</span>`).join("")}</div>
-      <div class="tiny mt12" style="line-height:1.6">Individual heads have no established weekly set target, so this view compares them <b style="color:var(--muted)">against each other</b> rather than against a number. Brightest = your most-worked head; under 35% of it is flagged as behind.</div>`;
+      +renderArmMap();
     return;
   }
   const det=regionSets(true),sets=det.sets,prm=prMusclesThisWeek();
@@ -1808,13 +1806,14 @@ function renderBodyMap(){
       <div class="tiny">${(()=>{const t=targetFor(r);return t?`${heatLabel(n,r)} · aim ${t[0]}–${t[1]} — `:""})()}${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
       <div class="hist-val" style="color:${heatColor(n,r)}">${n}</div></div>`;
   }).join("");
-  const legend=[["#2b4a7a","not trained"],["#2f9e63","under target"],["#a8c62c","on target"],["#e8a02a","at limit"],["#e0453f","over"]];
+  const legend=[[HEAT[0],"not trained"],[HEAT[1],"under target"],[HEAT[2],"on target"],[HEAT[3],"at limit"],[HEAT[4],"over"]];
   el.innerHTML=`<div class="seg" style="margin-bottom:12px">
       ${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}
     </div>
     <svg viewBox="-72 0 344 396" style="width:100%;max-height:420px;display:block" role="img" aria-label="Muscle heat map, ${BODY_VIEW} view">${svg}${mapLabels(BODY_VIEW)}</svg>
     <div class="row mt12" style="flex-wrap:wrap;gap:6px;justify-content:center">
       ${legend.map(l=>`<span class="pill" style="border-color:${l[0]};color:${l[0]}">${l[1]}</span>`).join("")}
+      ${Object.keys(prm).length?`<span class="pill" style="border-color:#eef0f4;color:#eef0f4;border-width:2px">⬤ white ring = PB this week</span>`:""}
     </div>
     <div class="tiny mt12" style="line-height:1.6"><b style="color:var(--muted)">${BODY_VIEW==="back"?"Back view shows rear delts, triceps and lats":BODY_VIEW==="front"?"Front view shows front delts, biceps and quads":"Side view: arm chain outlined in white, body muted behind it"}</b> — the same limb is a different muscle from front and back, so the colours differ between views.</div>
     <div class="tiny mt8" style="line-height:1.6">Colour is judged against <b style="color:var(--muted)">each muscle's own weekly target</b> — 10 sets is plenty for calves and light for quads. Sets are counted <b style="color:var(--muted)">fractionally</b>: a lift that directly trains a muscle scores 1, one that merely assists scores 0.5. A white outline marks a muscle you set a <b style="color:var(--volt)">PB</b> in this week.</div>
@@ -1822,7 +1821,7 @@ function renderBodyMap(){
     ${rows||`<div class="empty" style="padding:14px">No completed sets this week yet. Sets only count once you tap the ✓ next to them.</div>`}`;
 }
 /* ══════════ FUEL v2: macros, food library, weight, steps, balance ══════════ */
-FUEL_TAB="macros";
+let FUEL_TAB="macros";
 function fuelTab(t){FUEL_TAB=t;["macros","weight","steps","balance"].forEach(x=>{const b=$("ftab-"+x);if(b)b.classList.toggle("active",x===t)});renderFuel()}
 function renderFuel(){
   const b=$("fuel-body"),t=today();
@@ -2232,12 +2231,12 @@ const ARM_SVG=`
 const ARM_LABELS=[[52,20,"FRONT OF ARM"],[150,20,"BACK OF ARM"]];
 
 function armColor(n,max){
-  if(!n)return"#2b4a7a";
+  if(!n)return HEAT[0];
   const p=max?n/max:0;
-  if(p<.3)return"#2a5c46";
-  if(p<.55)return"#2f9e63";
-  if(p<.8)return"#a8c62c";
-  return"#e3ff3f";
+  if(p<.3)return HEAT[1];
+  if(p<.55)return HEAT[2];
+  if(p<.8)return HEAT[3];
+  return HEAT[4];
 }
 function renderArmMap(){
   const det=armSets(),sets=det.sets;
@@ -2253,7 +2252,12 @@ function renderArmMap(){
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${SUB_NAME[r]}${n&&(n/peak)<0.35?' <span class="tag" style="background:#0d2530;color:var(--sky)">behind</span>':""}</div>
       <div class="tiny">${n?Math.round(n/peak*100)+"% of your most-worked head · "+esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
       <div class="hist-val" style="color:${armColor(n,peak)}">${n}</div></div>`}).join("");
-  return`<svg viewBox="-72 0 344 372" style="width:100%;max-height:430px;display:block" role="img" aria-label="Detailed arm and shoulder heat map">${svg}${labels}${mapLabels("arms")}</svg>${rows}`;
+  const legend=[[HEAT[0],"none"],[HEAT[1],"well behind"],[HEAT[2],"behind"],[HEAT[3],"solid"],[HEAT[4],"most worked"]];
+  return`<svg viewBox="-72 0 344 372" style="width:100%;max-height:430px;display:block" role="img" aria-label="Detailed arm and shoulder heat map">${svg}${labels}${mapLabels("arms")}</svg>
+    <div class="row mt12" style="flex-wrap:wrap;gap:6px;justify-content:center">
+      ${legend.map(l=>`<span class="pill" style="border-color:${l[0]};color:${l[0]}">${l[1]}</span>`).join("")}</div>
+    <div class="tiny mt12" style="line-height:1.6">Heads have no established weekly set target, so this view compares them <b style="color:var(--muted)">against each other</b>. Brightest = your most-worked head; under 35% of it is flagged as behind.</div>
+    <div class="sec-title mt16" style="font-size:9.5px">Every head, most to least worked</div>${rows}`;
 }
 
 /* ══════ TINY BODY ICON per exercise card ══════ */
