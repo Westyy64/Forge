@@ -2231,13 +2231,14 @@ const ARM_SVG=`
 <ellipse cx="150" cy="332" rx="15" ry="17" fill="#1c2029" stroke="#2e3342" stroke-width="1.5"/>`;
 const ARM_LABELS=[[52,20,"FRONT OF ARM"],[150,20,"BACK OF ARM"]];
 
+const ARM_RAMP=["#22c55e","#facc15","#f97316","#a855f7"];   // least → most worked
 function armColor(n,max){
-  if(!n)return HEAT[0];
+  if(!n)return HEAT[0];                                      // blue sits outside the ramp
   const p=max?n/max:0;
-  if(p<.3)return HEAT[1];
-  if(p<.55)return HEAT[2];
-  if(p<.8)return HEAT[3];
-  return HEAT[4];
+  if(p<.3)return ARM_RAMP[0];
+  if(p<.55)return ARM_RAMP[1];
+  if(p<.8)return ARM_RAMP[2];
+  return ARM_RAMP[3];
 }
 function renderArmMap(){
   const det=armSets(),sets=det.sets;
@@ -2253,17 +2254,18 @@ function renderArmMap(){
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${SUB_NAME[r]}${n&&(n/peak)<0.35?' <span class="tag" style="background:#0d2530;color:var(--sky)">behind</span>':""}</div>
       <div class="tiny">${n?Math.round(n/peak*100)+"% of your most-worked head · "+esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
       <div class="hist-val" style="color:${armColor(n,peak)}">${n}</div></div>`}).join("");
-  const ramp=HEAT.slice(1).map((c,i)=>`<stop offset="${i/(HEAT.length-2)*100}%" stop-color="${c}"/>`).join("");
+
   return`<svg viewBox="-72 0 344 372" style="width:100%;max-height:430px;display:block" role="img" aria-label="Detailed arm and shoulder heat map">${svg}${labels}${mapLabels("arms")}</svg>
     <div class="tiny mt12" style="text-align:center;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-family:var(--font-m);font-size:9px">Measured against each other</div>
     <div class="mt8">
-      <svg viewBox="0 0 300 14" width="100%" height="14" style="display:block" aria-hidden="true">
-        <defs><linearGradient id="armramp" x1="0" x2="1">${ramp}</linearGradient></defs>
-        <rect x="26" y="4" width="248" height="7" rx="3.5" fill="url(#armramp)"/>
-        <rect x="4" y="4" width="18" height="7" rx="3.5" fill="${HEAT[0]}"/>
-      </svg>
-      <div class="row" style="justify-content:space-between;margin-top:4px">
-        <span class="tiny">none</span><span class="tiny">least worked</span><span class="tiny">most worked</span></div>
+      <div class="row" style="gap:9px;align-items:center">
+        <div style="width:52px;height:18px;border-radius:9px;background:${HEAT[0]};flex:0 0 auto"></div>
+        <div style="flex:1;height:18px;border-radius:9px;background:linear-gradient(90deg,${ARM_RAMP.join(",")})"></div>
+      </div>
+      <div class="row" style="gap:9px;margin-top:6px">
+        <div class="tiny" style="width:52px;text-align:center;flex:0 0 auto">none</div>
+        <div class="tiny" style="flex:1;text-align:center">least to most worked comparison</div>
+      </div>
     </div>
     <div class="tiny mt12" style="line-height:1.6">Individual heads have no established weekly set target, so unlike the body views this is a <b style="color:var(--muted)">sliding comparison</b> — each head against your hardest-worked one. Under 35% of it is flagged as behind.</div>
     <div class="sec-title mt16" style="font-size:9.5px">Every head, most to least worked</div>${rows}`;

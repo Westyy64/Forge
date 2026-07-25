@@ -1,7 +1,7 @@
 /* Forge service worker — offline support + a real installable PWA.
    HTML is network-first so updates land as soon as you're online;
    icons and the manifest are cache-first because they rarely change. */
-const V = "forge-v26";
+const V = "forge-v27";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 
 self.addEventListener("install", e => {
