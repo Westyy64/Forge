@@ -1037,10 +1037,29 @@ shrug:{alt:"barbell shrug",scene:SC.floor,hi:"core",imp:"bar",dur:2.2,
  A:[116,48, 116,68, 118,88, 118,108, 114,100, 112,126, 112,150], B:[116,42, 116,56, 118,78, 118,98, 114,100, 112,126, 112,150],
  labels:[[136,58,"straight up","v"],[136,110,"full stretch down"],[46,74,"no rolling","c"]],
  note:"Shrug straight up, hold one second at the top · never roll the shoulders"},
-wrist:{alt:"wrist curl",scene:SC.bench+SC.towerL,hi:"arm",imp:"grip",cable:[36,146],dur:2.2,
- A:[100,62, 100,80, 110,104, 138,114, 100,110, 132,110, 138,150], B:[100,62, 100,80, 110,104, 134,94, 100,110, 132,110, 138,150],
- labels:[[152,92,"curl up","v"],[152,124,"full stretch"],[66,116,"forearms on thighs","c"]],
- note:"Only the wrists move · full range, slow and deliberate"},
+wrist:{alt:"wrist curl, both grips",custom:()=>{
+ const panel=(x,title,sub,muscle,down,up,palmUp)=>{
+  const fx=x+8,fx2=x+78,fy=100;
+  return`<rect x="${x}" y="108" width="88" height="13" rx="4" fill="#2e3342"/>
+   <text x="${x+44}" y="20" font-size="10" fill="#eef0f4" font-family="IBM Plex Mono" text-anchor="middle" letter-spacing=".1em">${title}</text>
+   <text x="${x+44}" y="33" font-size="8.5" fill="#8a90a0" font-family="IBM Plex Mono" text-anchor="middle">${sub}</text>
+   <circle cx="${fx}" cy="${fy}" r="4" fill="#565d70"/>
+   <line x1="${fx}" y1="${fy}" x2="${fx2}" y2="${fy}" stroke="#e3ff3f" stroke-width="9" stroke-linecap="round"/>
+   <line x1="${fx2}" y1="${fy}" x2="${down[0]}" y2="${down[1]}" stroke="#eef0f4" stroke-width="7" stroke-linecap="round">
+     <animate attributeName="x2" values="${down[0]};${up[0]};${down[0]}" keyTimes="0;.5;1" dur="2.4s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .25 1;.45 0 .25 1"/>
+     <animate attributeName="y2" values="${down[1]};${up[1]};${down[1]}" keyTimes="0;.5;1" dur="2.4s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .25 1;.45 0 .25 1"/></line>
+   <circle cx="${down[0]}" cy="${down[1]}" r="5.5" fill="#191c24" stroke="#8a90a0" stroke-width="2.5">
+     <animate attributeName="cx" values="${down[0]};${up[0]};${down[0]}" keyTimes="0;.5;1" dur="2.4s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .25 1;.45 0 .25 1"/>
+     <animate attributeName="cy" values="${down[1]};${up[1]};${down[1]}" keyTimes="0;.5;1" dur="2.4s" repeatCount="indefinite" calcMode="spline" keySplines=".45 0 .25 1;.45 0 .25 1"/></circle>
+   <text x="${x+44}" y="140" font-size="8.5" fill="#3bc7f3" font-family="IBM Plex Mono" text-anchor="middle">palm ${palmUp?"UP":"DOWN"}</text>
+   <text x="${x+44}" y="152" font-size="9" fill="#e3ff3f" font-family="IBM Plex Mono" text-anchor="middle">${muscle}</text>`;
+ };
+ return`<svg viewBox="0 0 260 162" width="100%" style="display:block;background:#0d0f14;border:1px solid var(--line);border-radius:12px" role="img" aria-label="Animated wrist curl, underhand and overhand">
+  ${panel(14,"UNDERHAND","sets 1–2","flexors",[100,122],[98,74],true)}
+  <line x1="130" y1="42" x2="130" y2="132" stroke="#232733" stroke-width="1" stroke-dasharray="3,4"/>
+  ${panel(146,"OVERHAND","sets 3–4","extensors",[232,118],[230,80],false)}
+ </svg><div class="tiny mt8" style="text-align:center">Forearms braced on your thighs · only the wrist moves, elbows stay put</div>`;
+}},
 deadlift:{alt:"deadlift",scene:SC.floor,hi:"leg",imp:"bar",guide:[118,100,118,140],dur:3,
  A:[104,72, 112,88, 118,112, 118,138, 126,116, 106,130, 112,150], B:[116,44, 116,62, 118,84, 118,104, 114,96, 112,124, 112,150],
  labels:[[138,140,"bar over midfoot"],[136,110,"flat back","c"],[136,62,"stand tall","v"]],
@@ -1068,7 +1087,7 @@ hollow:{alt:"hollow body hold",scene:SC.floor,hi:"core",dur:3.6,
  note:"Ribs down, low back pressed to the floor · log the seconds"}
 };
 D.hang3=D.hang;
-const DEMOS={};Object.keys(D).forEach(k=>{Object.defineProperty(DEMOS,k,{get:()=>buildDemo(D[k]),enumerable:true})});
+const DEMOS={};Object.keys(D).forEach(k=>{Object.defineProperty(DEMOS,k,{get:()=>D[k].custom?D[k].custom():buildDemo(D[k]),enumerable:true})});
 function tipSheet(exId){const ex=findEx(exId);openSheet(`<div class="sheet-title">${esc(ex.name)}</div>${DEMOS[exId]?`<div class="mb12">${DEMOS[exId]}</div>`:""}<div class="subtle" style="line-height:1.7;font-size:13.5px">${TIPS[exId]||ex.equip}</div><div class="tiny mt12">${ex.equip}</div><button class="btn btn-full mt16" onclick="closeSheet()">Got it</button>`)}
 function warmupSheet(exId){
   const ex=findEx(exId),hist=exHistory(exId),rec=recommend(ex,hist);
