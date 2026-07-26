@@ -333,6 +333,7 @@ a{color:var(--sky);text-decoration:none}
     <button class="finish-chip" onclick="finishWorkout()">Finish</button>
   </div>
   <div class="wo-progress"><i id="wo-prog-fill"></i></div>
+  <div class="warm-card" id="wo-editing" style="display:none;background:#2a1508;border-color:#4a2a10;border-left-color:var(--ember)"></div>
   <div class="warm-card">
     <div class="warm-title">Warm-up first</div>
     <div class="warm-desc">5 min incline walk or bike, then ramp sets on the first lift — tap ⚡ Warm-up on it for exact loads.</div>
@@ -395,9 +396,8 @@ a{color:var(--sky);text-decoration:none}
 
 <!-- ═══════════ SESSION HISTORY ═══════════ -->
 <div id="scr-history" class="screen">
-  <div class="wo-topbar"><button class="back-btn" onclick="go('train')" aria-label="Back">‹</button><div class="wo-topname">Session history</div></div>
-  <div class="wrap"><div class="subtle mb16">Every session you've logged. Tap one to see every set, note and RPE.</div>
-  <div id="hist-body"></div></div>
+  <div class="wo-topbar"><button class="back-btn" onclick="histBack()" aria-label="Back">‹</button><div class="wo-topname" id="hist-head">Session history</div></div>
+  <div class="wrap"><div id="hist-body"></div></div>
 </div>
 
 <!-- ═══════════ PROGRAM EDITOR ═══════════ -->
@@ -494,36 +494,31 @@ a{color:var(--sky);text-decoration:none}
 let DAYS={
   day1:{label:"Day 1 · Push",short:"PUSH",sub:"Chest · Shoulders · Triceps · Grip",dur:"~60 min",exercises:[
     {id:"bench",name:"Barbell Bench Press",type:"compound",sets:4,reps:"6–8",muscle:"Chest",equip:"Rack + barbell (20 kg bar)"},
-    {id:"incline",name:"Smith Incline Press",type:"compound",sets:3,reps:"8–12",muscle:"Chest",equip:"Smith machine + bench (16 kg bar)"},
+    {id:"incline",name:"Smith Incline Press",type:"compound",sets:4,reps:"8–12",muscle:"Chest",equip:"Smith machine + bench (16 kg bar)"},
     {id:"shoulder",name:"Smith Shoulder Press",type:"compound",sets:3,reps:"8–12",muscle:"Shoulders",equip:"Smith machine + bench (16 kg bar)"},
     {id:"facepull",name:"Cable Face Pulls",type:"isolation",sets:3,reps:"15",muscle:"Shoulders",equip:"Cable + rope, set at face height"},
-    {id:"pushdown",name:"Cable Tricep Pushdown",type:"isolation",sets:3,reps:"10–12",muscle:"Arms",equip:"Cable straight bar"},
-    {id:"lateral",name:"Cable Lateral Raise (1 arm)",type:"isolation",sets:3,reps:"12–15 each",muscle:"Shoulders",equip:"Cable pulley handle — builds shoulder width"},
+    {id:"ohtri",name:"Overhead Cable Tricep Extension",type:"isolation",sets:3,reps:"10–12",muscle:"Arms",equip:"Cable low + rope, face away, elbows high beside your ears"},
+    {id:"lateral",name:"Cable Lateral Raise (1 arm)",type:"isolation",sets:4,reps:"12–15 each",muscle:"Shoulders",equip:"Cable pulley handle — builds shoulder width"},
     {id:"chestfly",name:"Cable Chest Fly",type:"isolation",sets:3,reps:"12–15",muscle:"Chest",equip:"Cable machine — squeeze at centre"},
-    {id:"hang",name:"Dead Hang",type:"finisher",sets:3,reps:"max sec",muscle:"Grip",equip:"Chin-up bar — log seconds in reps",timed:true},
   ]},
   day2:{label:"Day 2 · Lower A",short:"LOWER A",sub:"Quads · Glutes · Hamstrings · Core",dur:"~65 min",exercises:[
     {id:"squat",name:"Barbell Back Squat",type:"compound",sets:4,reps:"5–8",muscle:"Legs",equip:"Rack + barbell (20 kg bar)"},
-    {id:"lunge",name:"Smith Machine Lunge",type:"compound",sets:3,reps:"10–12 each",muscle:"Legs",equip:"Smith machine — step forward, lower knee to floor"},
+    {id:"zercher",name:"Zercher Squat + 20 m Carry",type:"compound",sets:3,reps:"8",muscle:"Legs",equip:"Bar in the crook of your elbows — squat, then walk 20 m carrying it"},
     {id:"rdl",name:"Romanian Deadlift",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Barbell (20 kg bar)"},
-    {id:"pullthr",name:"Cable Pull-Through",type:"compound",sets:3,reps:"12–15",muscle:"Legs",equip:"Cable lowest setting + rope — hinge, drive hips through"},
-    {id:"farmers",name:"Farmer's Carry",type:"compound",sets:3,reps:"30 m each",muscle:"Grip",equip:"Barbell loaded — log kg carried",carry:true},
+    {id:"farmers",name:"Farmer's Carry",type:"compound",sets:4,reps:"30 m each",muscle:"Grip",equip:"Barbell loaded — log kg carried",carry:true},
     {id:"crunch",name:"Cable Crunch",type:"isolation",sets:3,reps:"15–20",muscle:"Core",equip:"Cable + bar — kneel, crunch abs down"},
-    {id:"plank",name:"Plank",type:"finisher",sets:3,reps:"45–60 sec",muscle:"Core",equip:"Hold — log seconds in reps",timed:true},
+    {id:"calf2",name:"Smith Calf Raise",type:"isolation",sets:3,reps:"15–20",muscle:"Legs",equip:"Smith machine — second calf session of the week"},
   ]},
   day3:{label:"Day 3 · Pull",short:"PULL",sub:"Back · Biceps · Rear Delts · Grip",dur:"~60 min",exercises:[
     {id:"pullup",name:"Cable Lat Pulldown (Wide)",type:"compound",sets:4,reps:"8–12",muscle:"Back",equip:"Cable + wide bar — pull-up substitute for now"},
     {id:"bbrow",name:"Barbell Bent-Over Row",type:"compound",sets:4,reps:"6–8",muscle:"Back",equip:"Barbell (20 kg bar)"},
-    {id:"srow",name:"Cable Seated Row",type:"compound",sets:3,reps:"10–12",muscle:"Back",equip:"Cable + close grip — elbows in, squeeze blades"},
     {id:"lmrow",name:"Landmine Single-Arm Row",type:"compound",sets:3,reps:"10–12 each",muscle:"Back",equip:"Landmine — brace core, pull elbow back"},
-    {id:"curl",name:"Cable Bicep Curl",type:"isolation",sets:2,reps:"12–15",muscle:"Arms",equip:"Cable straight bar"},
+    {id:"curl",name:"Cable Bicep Curl",type:"isolation",sets:3,reps:"12–15",muscle:"Arms",equip:"Cable straight bar"},
     {id:"shrug",name:"Barbell Shrug",type:"isolation",sets:4,reps:"10–15",muscle:"Back",equip:"Barbell — shrug straight up, 1 s hold"},
     {id:"wrist",name:"Cable Wrist Curl",type:"finisher",sets:4,reps:"15–20",muscle:"Grip",equip:"Cable low, forearms on thighs — 2 sets underhand (flexors), then 2 sets overhand (extensors)"},
-    {id:"hang3",name:"Dead Hang",type:"finisher",sets:3,reps:"max sec",muscle:"Grip",equip:"Chin-up bar — log seconds in reps",timed:true},
   ]},
   day4:{label:"Day 4 · Lower B",short:"LOWER B",sub:"Posterior chain · Glutes · Core",dur:"~65 min",exercises:[
     {id:"deadlift",name:"Barbell Deadlift",type:"compound",sets:4,reps:"4–6",muscle:"Legs",equip:"Rack + barbell (20 kg bar)"},
-    {id:"rackpull",name:"Rack Pull (knee height)",type:"compound",sets:3,reps:"5–8",muscle:"Back",equip:"Rack + barbell"},
     {id:"hipthrust",name:"Smith Hip Thrust",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Smith machine + bench — go heavy"},
     {id:"calf4",name:"Smith Calf Raise",type:"isolation",sets:4,reps:"15–20",muscle:"Legs",equip:"Smith machine (16 kg bar)"},
     {id:"lmtwist",name:"Landmine Twist",type:"isolation",sets:3,reps:"12 each",muscle:"Core",equip:"Landmine — rotate side to side, straight arms"},
@@ -532,9 +527,9 @@ let DAYS={
 };
 const SUPERSETS={
   day1:[["bench","facepull"],["incline","lateral"],["shoulder","chestfly"]],
-  day2:[["squat","crunch"],["lunge","pullthr"]],
-  day3:[["pullup","srow"],["bbrow","curl"],["lmrow","shrug"]],
-  day4:[["hipthrust","lmtwist"]]
+  day2:[["squat","crunch"],["rdl","calf2"]],
+  day3:[["bbrow","curl"],["lmrow","wrist"]],
+  day4:[["hipthrust","lmtwist"],["deadlift","hollow"]]
 };
 const TIPS={
   bench:"Arch back, retract shoulder blades, tuck elbows slightly. Lower to chest, press up explosively.",
@@ -542,11 +537,11 @@ const TIPS={
   shoulder:"Sit upright, grip shoulder-width. Press overhead without locking out. Control the descent.",
   facepull:"Cable at face height. Pull rope to face, elbows high and wide. Squeeze rear delts.",
   lateral:"Stand side-on to cable. Raise to shoulder height, lead with the elbow. Slow descent.",
-  pushdown:"Elbows pinned at sides. Push to straight arms, squeeze triceps. Slow return.",
+  ohtri:"Face away from a low cable, rope overhead, elbows high and close to your ears. Extend to straight arms above your head, then let the rope stretch behind your neck. Only the forearms move — this is the one angle that loads the triceps long head.",
   chestfly:"Arms slightly bent throughout. Bring hands together at chest height. Squeeze at peak.",
   hang:"Full grip, straight arms. Shoulders engaged, not shrugged. Hold as long as possible.",
   squat:"Bar on upper traps. Chest up, knees over toes. Hit parallel or below. Drive through heels.",
-  lunge:"Step forward, back knee toward floor. Front shin vertical. Push through front heel.",
+  zercher:"Bar in the crook of your elbows, hugged tight to your chest. Squat with an upright torso, then stand and walk 20 m still holding it. Expect roughly half your back squat — elbows and upper back give out long before your legs. Pad the bar or wear a hoodie.",
   rdl:"Slight knee bend, push hips back. Bar close to legs. Feel the hamstring stretch, drive hips forward.",
   pullthr:"Face away from cable, rope between legs. Hinge forward, drive hips through to stand tall.",
   farmers:"Heavy load, neutral grip. Walk tall, tight core, shoulders back. 30 m per set.",
@@ -564,6 +559,7 @@ const TIPS={
   rackpull:"Bar at knee height in the rack. Grip hard, drive hips through to lockout.",
   hipthrust:"Upper back on bench, bar on hips. Drive hips to full lockout, squeeze glutes hard.",
   calf4:"Balls of feet on a plate. Full stretch at the bottom, pause at the top.",
+  calf2:"Balls of feet on a plate. Full stretch at the bottom, pause at the top. Second calf session of the week.",
   lmtwist:"Face the plate, arms straight. Rotate side to side from the core, not the arms.",
   hollow:"Lower back glued to floor. Legs at 45°, arms overhead. Log the seconds."
 };
@@ -575,7 +571,7 @@ const DEFAULT_DAYS=JSON.parse(JSON.stringify(DAYS)),DEFAULT_ORDER=DAY_ORDER.slic
 /* ---------- STORE ---------- */
 const KEY="forge-v1";
 let DB=load();
-function blank(){return{prefs:{goalWeight:85,kcalTarget:2200,proteinTarget:200,stepGoal:5000,sound:true,age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60},sessions:{},weight:[],steps:{},macros:{},prs:[]}}
+function blank(){return{prefs:{goalWeight:85,kcalTarget:2200,proteinTarget:200,stepGoal:5000,sound:true,age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,autoRest:false},sessions:{},weight:[],steps:{},macros:{},prs:[]}}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.prefs)return Object.assign(blank(),d)}catch(e){}return blank()}
 let saveT=null;
 let DB_REV=0;
@@ -649,8 +645,8 @@ function suggestedDay(){
   // next day in rotation after the most recently trained day
   let lastDay=null,lastDate="";
   DAY_ORDER.forEach(d=>{const ds=sessDates(d);if(ds.length&&ds[ds.length-1]>lastDate){lastDate=ds[ds.length-1];lastDay=d}});
-  if(!lastDay)return"day1";
-  return DAY_ORDER[(DAY_ORDER.indexOf(lastDay)+1)%4];
+  if(!lastDay)return DAY_ORDER[0];
+  return DAY_ORDER[(DAY_ORDER.indexOf(lastDay)+1)%DAY_ORDER.length]||DAY_ORDER[0];
 }
 function openSuggested(){openWorkout(suggestedDay())}
 function dstr(x){return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`}
@@ -753,9 +749,14 @@ function renderDayList(){
 
 /* ---------- WORKOUT SCREEN ---------- */
 let WO={dayId:null,date:null,clockStart:null,clockInt:null};
-function openWorkout(dayId){
-  WO.dayId=dayId;WO.date=today();
+function openWorkout(dayId,date){
+  WO.dayId=dayId;WO.date=date||today();
+  WO.editing=!!(date&&date!==today());
   $("wo-name").textContent=DAYS[dayId].label;
+  const ed=$("wo-editing");
+  if(ed){ed.style.display=WO.editing?"block":"none";
+    if(WO.editing)ed.innerHTML=`<div class="warm-title" style="color:var(--ember)">Editing ${fmtDate(WO.date)}</div>
+      <div class="warm-desc">You're changing a past session, not logging today. Records recalculate when you go back.</div>`}
   buildWorkout();
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   $("scr-workout").classList.add("active");
@@ -764,7 +765,11 @@ function openWorkout(dayId){
   $("scr-workout").scrollTop=0;
   updateClockChip();
 }
-function exitWorkout(){stopClockUI();go("train")}
+function exitWorkout(){
+  stopClockUI();
+  if(WO.editing){rebuildPRs();save();WO.editing=false;go("history")}
+  else go("train");
+}
 function ssInfo(dayId,exId){const p=SUPERSETS[dayId]||[];for(const pair of p){if(pair[0]===exId)return{order:"A",partner:pair[1]};if(pair[1]===exId)return{order:"B",partner:pair[0]}}return null}
 function buildWorkout(){
   const dayId=WO.dayId,sess=getSess(dayId,WO.date)||{};
@@ -843,7 +848,7 @@ function logSet(exId,i){
     checkPR(exId,s);
     const doneCount=(sess[exId]||[]).filter(x=>x&&x.done).length;
     if(doneCount>=ex.sets){$("ex-"+exId).classList.add("done")}
-    if(doneCount<ex.sets||true)startRest(ex);
+    if(DB.prefs.autoRest)startRest(ex);   // off by default — use the ⏱ Rest button
   }else{$("ex-"+exId).classList.remove("done")}
   updateProgressBar();
 }
@@ -1118,6 +1123,14 @@ wrist:{alt:"wrist curl, both grips",custom:()=>{
   ${panel(146,"OVERHAND","sets 3–4","extensors",[232,118],[230,80],false)}
  </svg><div class="tiny mt8" style="text-align:center">Forearms braced on your thighs · only the wrist moves, elbows stay put</div>`;
 }},
+ohtri:{alt:"overhead tricep extension",scene:SC.towerL,hi:"arm",imp:"grip",cable:[36,146],dur:2.4,
+ A:[112,50, 112,70, 108,44, 128,60, 110,104, 108,130, 108,150], B:[112,50, 112,70, 108,44, 104,18, 110,104, 108,130, 108,150],
+ labels:[[140,20,"lock out overhead","v"],[146,64,"stretch behind the head"],[62,58,"elbows high and","c"],[62,68,"close to the ears","c"]],
+ note:"Face away from a low cable · elbows stay put, only the forearms move"},
+zercher:{alt:"Zercher squat and carry",scene:SC.floor,hi:"leg",imp:"grip",dur:3.2,
+ A:[112,44, 112,64, 96,80, 112,84, 110,98, 108,126, 108,150], B:[104,74, 106,92, 90,108, 106,112, 118,128, 94,128, 108,150],
+ labels:[[132,80,"bar in the elbow crook","v"],[132,130,"chest tall, torso upright","c"],[52,146,"then walk 20 m"]],
+ note:"Squat with the bar hugged to your chest, stand, then carry it 20 m"},
 deadlift:{alt:"deadlift",scene:SC.floor,hi:"leg",imp:"bar",guide:[118,100,118,140],dur:3,
  A:[104,72, 112,88, 118,112, 118,138, 126,116, 106,130, 112,150], B:[116,44, 116,62, 118,84, 118,104, 114,96, 112,124, 112,150],
  labels:[[138,140,"bar over midfoot"],[136,110,"flat back","c"],[136,62,"stand tall","v"]],
@@ -1144,7 +1157,7 @@ hollow:{alt:"hollow body hold",scene:SC.floor,hi:"core",dur:3.6,
  labels:[[110,100,"low back glued down","v"],[186,118,"legs ~45°","c",1]],
  note:"Ribs down, low back pressed to the floor · log the seconds"}
 };
-D.hang3=D.hang;
+D.calf2=D.calf4;   // same movement, second session of the week
 const DEMOS={};Object.keys(D).forEach(k=>{Object.defineProperty(DEMOS,k,{get:()=>D[k].custom?D[k].custom():buildDemo(D[k]),enumerable:true})});
 function tipSheet(exId){const ex=findEx(exId);openSheet(`<div class="sheet-title">${esc(ex.name)}</div>${DEMOS[exId]?`<div class="mb12">${DEMOS[exId]}</div>`:""}<div class="subtle" style="line-height:1.7;font-size:13.5px">${TIPS[exId]||ex.equip}</div><div class="tiny mt12">${ex.equip}</div><button class="btn btn-full mt16" onclick="closeSheet()">Got it</button>`)}
 function warmupSheet(exId){
@@ -1289,6 +1302,7 @@ function renderMore(){
   installState();
 }
 function editPref(key,label){const v=prompt(label,DB.prefs[key]);if(v===null)return;const n=+v;if(!n){toast("Enter a number");return}DB.prefs[key]=n;save();renderMore();toast("Saved")}
+function toggleAutoRest(){DB.prefs.autoRest=!DB.prefs.autoRest;save();renderMore();toast(DB.prefs.autoRest?"Timer will start automatically":"Timer stays out of the way")}
 function toggleSound(){DB.prefs.sound=!DB.prefs.sound;save();renderMore()}
 function download(name,content,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
 function backupJSON(){download(`forge-backup-${today()}.json`,JSON.stringify(DB,null,1),"application/json");toast("Backup downloaded — keep it safe")}
@@ -1490,14 +1504,24 @@ const SEED_FOODS=[
 {label:"MMC Lo-Cal Honey Soy Chicken & Rice 330g",cal:370,pro:23.8,carb:54.8,fat:5}];
 
 /* ---------- migrate old shapes, seed the food library ---------- */
+const PROG_VERSION=3;
 function v2migrate(){
+  // one-off: adopt the rebuilt 4-day program. Logged sessions are untouched —
+  // history for removed exercises stays in your data, it just stops displaying.
+  try{
+    if((DB.progVersion||0)<PROG_VERSION){
+      DB.program=null;DAYS=JSON.parse(JSON.stringify(DEFAULT_DAYS));DAY_ORDER=DEFAULT_ORDER.slice();
+      DB.progVersion=PROG_VERSION;
+      setTimeout(()=>toast("Program updated — 23 exercises across 4 days",true),1200);
+    }
+  }catch(e){}
   // one-off: wrist curl became 4 sets (2 underhand + 2 overhand)
   try{if(DB.program&&DB.program.days){Object.keys(DB.program.days).forEach(d=>{
     (DB.program.days[d].exercises||[]).forEach(e=>{
       if(e.id==="wrist"&&e.sets===3){e.sets=4;
         e.equip="Cable low, forearms on thighs — 2 sets underhand (flexors), then 2 sets overhand (extensors)"}})})}}catch(e){}
   DB.prefs=Object.assign({age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,
-    autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,goalWeight:85,kcalTarget:2200,
+    autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,autoRest:false,goalWeight:85,kcalTarget:2200,
     proteinTarget:200,stepGoal:5000,sound:true},DB.prefs);
   DB.foods=DB.foods||[];
   if(!DB.foods.length)DB.foods=SEED_FOODS.map((f,i)=>Object.assign({id:"f"+i},f));
@@ -1588,27 +1612,24 @@ bench:{p:["chest"],s:["delt_front","tri_lat","tri_med"]},
 incline:{p:["chest"],s:["delt_front","tri_lat","tri_med"]},
 shoulder:{p:["delt_front","delt_side"],s:["tri_long","tri_lat"]},
 facepull:{p:["delt_rear"],s:["trap_mid","upback"]},
-pushdown:{p:["tri_lat","tri_med"],s:[]},
+ohtri:{p:["tri_long","tri_med"],s:["tri_lat"]},
 lateral:{p:["delt_side"],s:[]},
 chestfly:{p:["chest"],s:["delt_front"]},
-hang:{p:["fore_flex","fore_ext"],s:[]},hang3:{p:["fore_flex","fore_ext"],s:[]},
 squat:{p:["quad","glute"],s:["abs","lowback"]},
-lunge:{p:["quad","glute"],s:[]},
+zercher:{p:["quad","upback","abs"],s:["glute","bi_long","fore_flex","trap_up"]},
 rdl:{p:["ham","glute"],s:["lowback"]},
-pullthr:{p:["glute","ham"],s:[]},
 farmers:{p:["fore_flex","fore_ext"],s:["trap_up","abs"]},
-crunch:{p:["abs"],s:[]},plank:{p:["abs"],s:[]},hollow:{p:["abs"],s:[]},
+crunch:{p:["abs"],s:[]},hollow:{p:["abs"],s:[]},
 pullup:{p:["lat"],s:["bi_long","brach","delt_rear"]},
 bbrow:{p:["lat","upback"],s:["bi_long","brach","trap_mid","delt_rear"]},
-srow:{p:["upback","lat"],s:["bi_short","brach","trap_mid"]},
 lmrow:{p:["lat","upback"],s:["bi_long","brach","trap_mid"]},
 curl:{p:["bi_short","bi_long","brach"],s:[]},
 shrug:{p:["trap_up"],s:["fore_flex"]},
 wrist:{p:["fore_flex","fore_ext"],s:[]},
 deadlift:{p:["ham","glute","lowback"],s:["trap_up","fore_flex"]},
-rackpull:{p:["trap_up","lowback"],s:["glute","fore_flex"]},
 hipthrust:{p:["glute"],s:["ham"]},
 calf4:{p:["calf"],s:[]},
+calf2:{p:["calf"],s:[]},
 lmtwist:{p:["oblique"],s:["abs"]}};
 const COARSE_SUBS={chest:["chest"],delt:["delt_front","delt_side"],reardelt:["delt_rear"],
 bi:["bi_long","bi_short","brach"],tri:["tri_long","tri_lat","tri_med"],fore:["fore_flex","fore_ext"],
@@ -2164,11 +2185,13 @@ renderMore=function(){
         <div class="set-item" onclick="editPref('restC','Rest after compound sets (seconds)')"><div><div class="set-item-l">Compound rest</div></div><div class="set-item-r" id="s-restc">—</div></div>
         <div class="set-item" onclick="editPref('restI','Rest after isolation sets (seconds)')"><div><div class="set-item-l">Isolation rest</div></div><div class="set-item-r" id="s-resti">—</div></div>
         <div class="set-item" onclick="editPref('restF','Rest after finisher sets (seconds)')"><div><div class="set-item-l">Finisher rest</div></div><div class="set-item-r" id="s-restf">—</div></div>
+        <div class="set-item" onclick="toggleAutoRest()"><div><div class="set-item-l">Start timer automatically</div><div class="set-item-d">Off — the timer only opens when you tap ⏱ Rest</div></div><div class="set-item-r" id="s-autorest">Off</div></div>
       </div>`;
     host.appendChild(d);
   }
   const fbc=$("fb-card");if(fbc)fbc.innerHTML=fbCard();
   const sn=$("s-snaps");if(sn)sn.textContent=snapshots().length||"none";
+  const ar=$("s-autorest");if(ar)ar.textContent=DB.prefs.autoRest?"On":"Off";
   const set=(id,v)=>{const el=$(id);if(el)el.textContent=v};
   set("s-asteps",DB.prefs.autoSteps);set("s-akcal",DB.prefs.autoKcal);set("s-aprot",DB.prefs.autoProt+" g");
   set("s-age",DB.prefs.age);set("s-height",DB.prefs.height+" cm");set("s-burn",DB.prefs.trainBurn+" kcal");
@@ -2719,36 +2742,61 @@ function allSessions(){
   }));
   return out.sort((a,b)=>a.date<b.date?1:-1);
 }
-let HIST_OPEN=null;
+let HIST_OPEN=null,HIST_DAY=null;
+function histCount(dayId){return allSessions().filter(s=>s.dayId===dayId).length}
 function renderHistory(){
-  const list=allSessions();
-  $("hist-body").innerHTML=list.length?list.map(s=>{
-    const d=new Date(s.date+"T12:00"),open=HIST_OPEN===s.dayId+"|"+s.date;
-    const rows=open?s.exes.map(e=>{
-      const cells=(e.sets||[]).map((x,i)=>{
-        if(!setDone(x))return"";
-        const unit=e.ex.timed?"s":e.ex.carry?"m":"";
-        return`<span class="pill" style="border-color:${x.rpe?rpeColor(x.rpe):"var(--line2)"}">${x.w?x.w+"×":""}${x.r}${unit}${x.rpe?` <b style="color:${rpeColor(x.rpe)}">@${x.rpe}</b>`:""}</span>`;
-      }).join("");
-      const note=s.notes[e.ex.id];
-      return`<div style="padding:9px 0;border-bottom:1px solid #1a1d26">
-        <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">${esc(e.ex.name)}</div>
-        <div class="row" style="flex-wrap:wrap;gap:5px">${cells}</div>
-        ${note?`<div class="tiny mt8" style="color:var(--muted)">“${esc(note)}”</div>`:""}</div>`;
-    }).join(""):"";
-    return`<div class="card mb8">
-      <div class="spread" onclick="toggleHist('${s.dayId}','${s.date}')" style="cursor:pointer">
-        <div style="flex:1;min-width:0">
-          <div class="day-kicker">${esc(DAYS[s.dayId]?DAYS[s.dayId].short:s.dayId)} · ${d.toLocaleDateString(undefined,{weekday:"short"})}</div>
-          <div style="font-size:15px;font-weight:700">${fmtDate(s.date)}${s.date===today()?" · Today":""}</div>
-          <div class="tiny mt8">${s.sets} sets · ${s.ton.toLocaleString()} kg${s.dur?" · "+s.dur+" min":""}${s.rpe?` · avg RPE <b style="color:${rpeColor(s.rpe)}">${s.rpe}</b>`:""}</div>
+  const body=$("hist-body"),head=$("hist-head");
+  if(!HIST_DAY){                                   // step 1 — choose a workout
+    head.textContent="Session history";
+    body.innerHTML=`<div class="subtle mb16">Pick a workout to see everything you've logged for it.</div>`+
+      DAY_ORDER.map(id=>{
+        const n=histCount(id),ds=sessDates(id);
+        const last=ds.length?ds[ds.length-1]:null;
+        return`<div class="day-card" onclick="openHistDay('${id}')">
+          <div><div class="day-kicker">${esc(DAYS[id].label)}</div>
+          <div class="day-name">${esc(DAYS[id].short)}</div>
+          <div class="day-meta">${n} ${n===1?"session":"sessions"} logged</div>
+          <div class="day-last">${last?"Last: "+fmtDate(last):"Never trained"}</div></div>
+          <div class="day-arrow">›</div></div>`}).join("")+
+      `<div class="tiny mt12" style="text-align:center">${allSessions().length} sessions in total.</div>`;
+    return;
+  }
+  const list=allSessions().filter(x=>x.dayId===HIST_DAY);   // step 2 — that day's sessions
+  head.textContent=DAYS[HIST_DAY]?DAYS[HIST_DAY].short:"History";
+  body.innerHTML=`<button class="btn btn-ghost btn-full mb12" onclick="openHistDay(null)">‹ All workouts</button>`+
+    (list.length?list.map(s=>{
+      const d=new Date(s.date+"T12:00"),open=HIST_OPEN===s.dayId+"|"+s.date;
+      const rows=open?s.exes.map(e=>{
+        const cells=(e.sets||[]).map(x=>{
+          if(!setDone(x))return"";
+          const unit=e.ex.timed?"s":e.ex.carry?"m":"";
+          return`<span class="pill" style="border-color:${x.rpe?rpeColor(x.rpe):"var(--line2)"}">${x.w?x.w+"×":""}${x.r}${unit}${x.rpe?` <b style="color:${rpeColor(x.rpe)}">@${x.rpe}</b>`:""}</span>`;
+        }).join("");
+        const note=s.notes[e.ex.id];
+        return`<div style="padding:9px 0;border-bottom:1px solid #1a1d26">
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">${esc(e.ex.name)}</div>
+          <div class="row" style="flex-wrap:wrap;gap:5px">${cells}</div>
+          ${note?`<div class="tiny mt8" style="color:var(--muted)">“${esc(note)}”</div>`:""}</div>`;
+      }).join(""):"";
+      return`<div class="card mb8">
+        <div class="spread">
+          <div style="flex:1;min-width:0;cursor:pointer" onclick="toggleHist('${s.dayId}','${s.date}')">
+            <div class="day-kicker">${d.toLocaleDateString(undefined,{weekday:"long"})}</div>
+            <div style="font-size:15px;font-weight:700">${fmtDate(s.date)}${s.date===today()?" · Today":""}</div>
+            <div class="tiny mt8">${s.sets} sets · ${s.ton.toLocaleString()} kg${s.dur?" · "+s.dur+" min":""}${s.rpe?` · avg RPE <b style="color:${rpeColor(s.rpe)}">${s.rpe}</b>`:""}</div>
+          </div>
+          <div class="row" style="gap:6px;flex:0 0 auto">
+            <button class="tool-btn" style="padding:8px 12px" onclick="editSession('${s.dayId}','${s.date}')">✎ Edit</button>
+            <div class="day-arrow" onclick="toggleHist('${s.dayId}','${s.date}')" style="cursor:pointer">${open?"⌄":"›"}</div>
+          </div>
         </div>
-        <div class="day-arrow">${open?"⌄":"›"}</div>
-      </div>
-      ${open?`<div class="mt12">${rows}<button class="btn btn-ghost btn-full mt12" onclick="delSession('${s.dayId}','${s.date}')">Delete this session</button></div>`:""}
-    </div>`;
-  }).join(""):`<div class="empty">No sessions logged yet. Finish a workout and it appears here.</div>`;
+        ${open?`<div class="mt12">${rows}<button class="btn btn-ghost btn-full mt12" onclick="delSession('${s.dayId}','${s.date}')">Delete this session</button></div>`:""}
+      </div>`;
+    }).join(""):`<div class="empty">Nothing logged for this workout yet.</div>`);
 }
+function histBack(){if(HIST_DAY)openHistDay(null);else go("train")}
+function openHistDay(id){HIST_DAY=id;HIST_OPEN=null;renderHistory();$("scr-history").scrollTop=0}
+function editSession(dayId,date){openWorkout(dayId,date);toast("Editing "+fmtDate(date))}
 function toggleHist(d,date){const k=d+"|"+date;HIST_OPEN=HIST_OPEN===k?null:k;renderHistory()}
 function delSession(dayId,date){
   if(!confirm("Delete the session from "+fmtDate(date)+"? This can't be undone, though a snapshot may let you roll back."))return;
