@@ -104,7 +104,10 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .tile-sub.pos{color:var(--pos)}.tile-sub.neg{color:var(--neg)}.tile-sub.volt{color:var(--volt)}
 
 /* Big Four barbell gauges — signature element */
-.bb-gauge{margin-bottom:14px}
+.bb-gauge{margin-bottom:14px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
+  touch-action:pan-y;position:relative}
+.bb-gauge.dragging{z-index:5;opacity:.96;box-shadow:0 8px 26px rgba(0,0,0,.55);transform:scale(1.04)}
+.bb-hold{position:absolute;left:0;bottom:0;height:2px;width:0;background:var(--volt);border-radius:1px;transition:width linear}
 .bb-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
 .bb-name{font-size:12.5px;font-weight:600}
 .bb-nums{font-family:var(--font-m);font-size:11px;color:var(--muted)}
@@ -302,7 +305,7 @@ a{color:var(--sky);text-decoration:none}
       </div>
     </div>
     <div class="mt24">
-      <div class="sec-title">The Big Eight</div>
+      <div class="sec-title">The Big Four</div>
       <div class="card" id="bigfour"></div>
     </div>
     <div class="mt16" id="home-alert"></div>
@@ -512,7 +515,7 @@ let DAYS={
     {id:"squat",name:"Barbell Back Squat",type:"compound",sets:4,reps:"5–8",muscle:"Legs",equip:"Rack + barbell (20 kg bar)"},
     {id:"crunch",name:"Cable Crunch",type:"isolation",sets:3,reps:"15–20",muscle:"Core",equip:"Cable + bar — kneel, crunch abs down"},
     {id:"rdl",name:"Romanian Deadlift",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Barbell (20 kg bar)"},
-    {id:"calf2",name:"Smith Calf Raise",type:"isolation",sets:3,reps:"15–20",muscle:"Legs",equip:"Smith machine — second calf session of the week"},
+    {id:"calf4",name:"Smith Calf Raise",type:"isolation",sets:3,reps:"15–20",muscle:"Legs",equip:"Smith machine — second calf session of the week"},
     {id:"zercher",name:"Zercher Squat + 20 m Carry",type:"compound",sets:3,reps:"8",muscle:"Legs",equip:"Bar in the crook of your elbows — squat, then walk 20 m carrying it"},
     {id:"farmers",name:"Farmer's Carry",type:"compound",sets:4,reps:"30 m each",muscle:"Grip",equip:"Barbell loaded — log kg carried",carry:true},
   ]},
@@ -536,7 +539,7 @@ let DAYS={
    top to bottom: heavy lift, then its unrelated partner, then rest.        */
 const SUPERSETS={
   day1:[["bench","facepull"],["incline","lateral"],["shoulder","chestfly"]],
-  day2:[["squat","crunch"],["rdl","calf2"]],
+  day2:[["squat","crunch"],["rdl","calf4"]],
   day3:[["bbrow","curl"],["shrug","wrist"]],
   day4:[["hipthrust","lmtwist"],["calf4","hollow"]]
 };
@@ -568,15 +571,14 @@ const TIPS={
   rackpull:"Bar at knee height in the rack. Grip hard, drive hips through to lockout.",
   hipthrust:"Upper back on bench, bar on hips. Drive hips to full lockout, squeeze glutes hard.",
   calf4:"Balls of feet on a plate. Full stretch at the bottom, pause at the top.",
-  calf2:"Balls of feet on a plate. Full stretch at the bottom, pause at the top. Second calf session of the week.",
   lmtwist:"Face the plate, arms straight. Rotate side to side from the core, not the arms.",
   hollow:"Lower back glued to floor. Legs at 45°, arms overhead. Log the seconds."
 };
 /* The eight that define the goals: three barbell strength benchmarks,
    two carries (goal 1), and three that drive visible upper-body mass. */
-const BIG_DEFAULT=["bench","squat","deadlift","bbrow","zercher","farmers","shoulder","shrug"];
+const BIG_DEFAULT=["bench","squat","deadlift","bbrow"];
 function bigList(){
-  const saved=(DB.bigOrder||[]).filter(id=>findEx(id));
+  const saved=(DB.bigOrder||[]).filter(id=>findEx(id)&&BIG_DEFAULT.indexOf(id)>=0);
   const rest=BIG_DEFAULT.filter(id=>saved.indexOf(id)<0&&findEx(id));
   return saved.concat(rest);
 }
@@ -752,11 +754,11 @@ function renderBigFour(){
       svg+=`<rect x="${x2}" y="${y}" width="9" height="${hgt}" rx="2" fill="${filled?col:"#232733"}"/>`;
     }
     svg+=`</svg>`;
-    h+=`<div class="bb-gauge" data-big="${exId}" style="touch-action:pan-y">
+    h+=`<div class="bb-gauge" data-big="${exId}">
       <div class="bb-head"><div class="bb-name">${esc(ex.name)}${pct>=1?" 🏆":""}</div>
       <div class="bb-nums"><b>${cur||0}</b> / ${goal} ${unit} <span style="color:var(--dim)">${detail}</span></div></div>${svg}</div>`;
   });
-  h+=`<div class="tiny">Your best weight <b style="color:var(--muted)">at the goal's rep count</b>, worked out from your heaviest set. Hold a bar for 3 seconds to drag it into your own order.</div>`;
+  h+=`<div class="tiny">Your best weight <b style="color:var(--muted)">at the goal's rep count</b>, worked out from your heaviest set. Press and hold a bar, then drag it into your own order.</div>`;
   $("bigfour").innerHTML=h;
   attachBigDrag();
 }
@@ -765,26 +767,28 @@ function renderBigFour(){
 let BIGDRAG=null;
 function attachBigDrag(){
   const host=$("bigfour");if(!host)return;
-  const HOLD=3000,SLOP=12;
+  const HOLD=800,SLOP=12;      // 0.8 s is the standard long-press
   host.querySelectorAll(".bb-gauge").forEach(el=>{
     let timer=null,armed=false,sx=0,sy=0;
     const pt=e=>e.touches&&e.touches[0]?e.touches[0]:e;
     const cleanup=()=>{
       clearTimeout(timer);
+      bar.style.transition="none";bar.style.width="0";
       if(!armed)return;
       armed=false;
-      el.style.transform="";el.style.boxShadow="";el.style.opacity="";el.style.zIndex="";
+      el.classList.remove("dragging");
       host.style.touchAction="";
       DB.bigOrder=[...host.querySelectorAll(".bb-gauge")].map(o=>o.dataset.big);
       save();BIGDRAG=null;toast("Order saved");
     };
+    const bar=document.createElement("i");bar.className="bb-hold";el.appendChild(bar);
     const down=e=>{
       const p=pt(e);sx=p.clientX;sy=p.clientY;
       clearTimeout(timer);
+      bar.style.transition="width "+HOLD+"ms linear";bar.style.width="100%";
       timer=setTimeout(()=>{
         armed=true;haptic(40);
-        el.style.transition="transform .12s";el.style.transform="scale(1.04)";
-        el.style.boxShadow="0 8px 26px rgba(0,0,0,.55)";el.style.opacity=".96";el.style.zIndex="5";
+        el.classList.add("dragging");
         host.style.touchAction="none";           // take over scrolling while dragging
         BIGDRAG=el;
       },HOLD);
@@ -792,7 +796,8 @@ function attachBigDrag(){
     const move=e=>{
       const p=pt(e);
       if(!armed){
-        if(Math.abs(p.clientX-sx)>SLOP||Math.abs(p.clientY-sy)>SLOP)clearTimeout(timer);
+        if(Math.abs(p.clientX-sx)>SLOP||Math.abs(p.clientY-sy)>SLOP){
+          clearTimeout(timer);bar.style.transition="none";bar.style.width="0";}
         return;
       }
       if(e.cancelable)e.preventDefault();
@@ -814,7 +819,8 @@ function attachBigDrag(){
     el.addEventListener("mousedown",down);
     el.addEventListener("mousemove",move);
     el.addEventListener("mouseup",cleanup);
-    el.addEventListener("mouseleave",()=>{if(!armed)clearTimeout(timer)});
+    el.addEventListener("mouseleave",()=>{if(!armed){clearTimeout(timer);bar.style.transition="none";bar.style.width="0"}});
+    el.addEventListener("contextmenu",e=>e.preventDefault());   // stop the phone's callout menu
   });
 }
 
@@ -911,16 +917,18 @@ function setVal(exId,i,k,v){
   const inp=$((k==="w"?"w-":"r-")+exId+"-"+i);if(inp)inp.classList.toggle("logged",v!=="");
 }
 function logSet(exId,i){
+  const ex=findEx(exId);if(!ex)return;              // exercise no longer in the program
   const sess=ensureSess(WO.dayId,WO.date);sess[exId]=sess[exId]||[];sess[exId][i]=sess[exId][i]||{};
   const s=sess[exId][i];
   // adopt placeholder values if fields left empty
   const wi=$("w-"+exId+"-"+i),ri=$("r-"+exId+"-"+i);
+  if(!wi||!ri){s.done=!s.done;save();return}       // card not on screen
   if(!s.w&&wi.placeholder&&wi.value==="")s.w=+wi.placeholder,wi.value=s.w,wi.classList.add("logged");
   if(!s.r&&ri.placeholder&&ri.value==="")s.r=+ri.placeholder,ri.value=s.r,ri.classList.add("logged");
   s.done=!s.done;save();haptic(20);
-  $("g-"+exId+"-"+i).classList.toggle("on",s.done);
-  $("n-"+exId+"-"+i).classList.toggle("on",s.done);
-  const ex=findEx(exId);
+  const gb=$("g-"+exId+"-"+i),nb=$("n-"+exId+"-"+i);
+  if(gb)gb.classList.toggle("on",s.done);
+  if(nb)nb.classList.toggle("on",s.done);
   if(s.done){
     checkPR(exId,s);
     const doneCount=(sess[exId]||[]).filter(x=>x&&x.done).length;
@@ -1240,7 +1248,6 @@ hollow:{alt:"hollow body hold",scene:SC.floor,hi:"core",dur:3.6,
  labels:[[110,100,"low back glued down","v"],[186,118,"legs ~45°","c",1]],
  note:"Ribs down, low back pressed to the floor · log the seconds"}
 };
-D.calf2=D.calf4;   // same movement, second session of the week
 const DEMOS={};Object.keys(D).forEach(k=>{Object.defineProperty(DEMOS,k,{get:()=>D[k].custom?D[k].custom():buildDemo(D[k]),enumerable:true})});
 function tipSheet(exId){const ex=findEx(exId);openSheet(`<div class="sheet-title">${esc(ex.name)}</div>${DEMOS[exId]?`<div class="mb12">${DEMOS[exId]}</div>`:""}<div class="subtle" style="line-height:1.7;font-size:13.5px">${TIPS[exId]||ex.equip}</div><div class="tiny mt12">${ex.equip}</div><button class="btn btn-full mt16" onclick="closeSheet()">Got it</button>`)}
 function warmupSheet(exId){
@@ -1587,7 +1594,7 @@ const SEED_FOODS=[
 {label:"MMC Lo-Cal Honey Soy Chicken & Rice 330g",cal:370,pro:23.8,carb:54.8,fat:5}];
 
 /* ---------- migrate old shapes, seed the food library ---------- */
-const PROG_VERSION=5;
+const PROG_VERSION=6;
 function v2migrate(){
   // one-off: adopt the rebuilt 4-day program. Logged sessions are untouched —
   // history for removed exercises stays in your data, it just stops displaying.
@@ -1595,7 +1602,7 @@ function v2migrate(){
     if((DB.progVersion||0)<PROG_VERSION){
       DB.program=null;DAYS=JSON.parse(JSON.stringify(DEFAULT_DAYS));DAY_ORDER=DEFAULT_ORDER.slice();
       DB.progVersion=PROG_VERSION;
-      setTimeout(()=>toast("Program updated — supersets now run top to bottom",true),1200);
+      setTimeout(()=>toast("Program updated — calf raises now share one goal",true),1200);
     }
   }catch(e){}
   // one-off: wrist curl became 4 sets (2 underhand + 2 overhand)
@@ -1712,7 +1719,6 @@ wrist:{p:["fore_flex","fore_ext"],s:[]},
 deadlift:{p:["ham","glute","lowback"],s:["trap_up","fore_flex"]},
 hipthrust:{p:["glute"],s:["ham"]},
 calf4:{p:["calf"],s:[]},
-calf2:{p:["calf"],s:[]},
 lmtwist:{p:["oblique"],s:["abs"]}};
 const COARSE_SUBS={chest:["chest"],delt:["delt_front","delt_side"],reardelt:["delt_rear"],
 bi:["bi_long","bi_short","brach"],tri:["tri_long","tri_lat","tri_med"],fore:["fore_flex","fore_ext"],
@@ -2976,7 +2982,7 @@ const DEFAULT_TARGETS={
 bench:{w:90,r:8},incline:{w:60,r:8},shoulder:{w:45,r:8},facepull:{w:50,r:15},
 ohtri:{w:50,r:12},lateral:{w:24,r:15},chestfly:{w:36,r:12},
 squat:{w:125,r:8},zercher:{w:85,r:8},rdl:{w:100,r:10},farmers:{w:100,r:30},
-crunch:{w:80,r:15},calf2:{w:80,r:15},
+crunch:{w:80,r:15},
 pullup:{w:100,r:10},bbrow:{w:80,r:8},lmrow:{w:50,r:10},curl:{w:60,r:12},
 shrug:{w:120,r:12},wrist:{w:50,r:15},
 deadlift:{w:140,r:8},hipthrust:{w:120,r:10},calf4:{w:80,r:15},
@@ -3053,9 +3059,12 @@ function resetTarget(exId){
   if(CUR==="progress")renderProgress();toast("Reset to suggested");
 }
 function renderTargets(){
-  const rows=[];
+  const rows=[],seen={};
   DAY_ORDER.forEach(dayId=>{
-    const list=(DAYS[dayId].exercises||[]).filter(e=>getTarget(e.id));
+    const list=(DAYS[dayId].exercises||[]).filter(e=>{
+      if(!getTarget(e.id)||seen[e.id])return false;   // same lift on two days = one goal
+      seen[e.id]=1;return true;
+    });
     if(!list.length)return;
     rows.push(`<div class="sec-title mt16" style="font-size:9.5px">${esc(DAYS[dayId].short)}</div>`);
     list.forEach(ex=>{
