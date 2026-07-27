@@ -366,6 +366,10 @@ a{color:var(--sky);text-decoration:none}
     <div class="eyebrow">Analytics</div>
     <div class="h-display">PROOF OF<br><em>WORK</em></div>
     <div class="mt16">
+      <div class="sec-title">Muscle map · this week</div>
+      <div class="card" id="bodymap"></div>
+    </div>
+    <div class="mt16">
       <div class="sec-title">This week's review</div>
       <div id="rev-week"></div>
     </div>
@@ -2234,15 +2238,7 @@ function restSub(n){REST.left=Math.max(1,REST.left-n)}
 const _renderProgress=renderProgress;
 renderProgress=function(){
   _renderProgress();
-  const host=$("vol-by-muscle");
-  if(host&&!$("bodymap")){
-    const block=document.createElement("div");
-    block.className="mt16";
-    block.innerHTML=`<div class="sec-title">Muscle map · this week</div><div class="card" id="bodymap"></div>`;
-    const section=host.parentNode;                 // the .mt16 wrapper around the volume bars
-    section.parentNode.insertBefore(block,section);
-  }
-  renderBodyMap();
+  renderBodyMap();          // #bodymap is the first block on the screen
 };
 
 /* ══════════ SETTINGS additions ══════════ */
