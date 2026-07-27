@@ -760,49 +760,61 @@ function renderBigFour(){
   $("bigfour").innerHTML=h;
   attachBigDrag();
 }
-/* long-press then drag to reorder */
+/* Long-press then drag to reorder. Cancels only on a real move (>12px) or a
+   scroll, never on the small wobble every finger makes. */
 let BIGDRAG=null;
 function attachBigDrag(){
   const host=$("bigfour");if(!host)return;
+  const HOLD=3000,SLOP=12;
   host.querySelectorAll(".bb-gauge").forEach(el=>{
-    let timer=null,armed=false;
-    const y=e=>(e.touches?e.touches[0].clientY:e.clientY);
-    const start=e=>{
-      const startY=y(e);
-      timer=setTimeout(()=>{
-        armed=true;haptic(30);
-        el.style.transition="transform .12s";el.style.transform="scale(1.03)";
-        el.style.boxShadow="0 6px 22px rgba(0,0,0,.5)";el.style.opacity=".95";
-        BIGDRAG={el,startY,order:[...host.querySelectorAll(".bb-gauge")]};
-      },3000);
-      const cancel=()=>{if(!armed)clearTimeout(timer)};
-      el.addEventListener("touchmove",cancel,{once:true});
-      el.addEventListener("touchend",()=>{clearTimeout(timer);if(!armed)return;},{once:true});
-    };
-    el.addEventListener("touchstart",start,{passive:true});
-    el.addEventListener("mousedown",start);
-    el.addEventListener("touchmove",e=>{
-      if(!armed||!BIGDRAG)return;
-      e.preventDefault();
-      const cy=y(e);
-      const over=[...host.querySelectorAll(".bb-gauge")].find(o=>{
-        if(o===el)return false;const r=o.getBoundingClientRect();
-        return cy>r.top&&cy<r.bottom;
-      });
-      if(over){const r=over.getBoundingClientRect();
-        host.insertBefore(el,cy<r.top+r.height/2?over:over.nextSibling)}
-    },{passive:false});
-    const drop=()=>{
+    let timer=null,armed=false,sx=0,sy=0;
+    const pt=e=>e.touches&&e.touches[0]?e.touches[0]:e;
+    const cleanup=()=>{
       clearTimeout(timer);
-      if(!armed)return;armed=false;
-      el.style.transform="";el.style.boxShadow="";el.style.opacity="";
+      if(!armed)return;
+      armed=false;
+      el.style.transform="";el.style.boxShadow="";el.style.opacity="";el.style.zIndex="";
+      host.style.touchAction="";
       DB.bigOrder=[...host.querySelectorAll(".bb-gauge")].map(o=>o.dataset.big);
       save();BIGDRAG=null;toast("Order saved");
     };
-    el.addEventListener("touchend",drop);
-    el.addEventListener("touchcancel",drop);
-    el.addEventListener("mouseup",drop);
-    el.addEventListener("mouseleave",()=>{clearTimeout(timer)});
+    const down=e=>{
+      const p=pt(e);sx=p.clientX;sy=p.clientY;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        armed=true;haptic(40);
+        el.style.transition="transform .12s";el.style.transform="scale(1.04)";
+        el.style.boxShadow="0 8px 26px rgba(0,0,0,.55)";el.style.opacity=".96";el.style.zIndex="5";
+        host.style.touchAction="none";           // take over scrolling while dragging
+        BIGDRAG=el;
+      },HOLD);
+    };
+    const move=e=>{
+      const p=pt(e);
+      if(!armed){
+        if(Math.abs(p.clientX-sx)>SLOP||Math.abs(p.clientY-sy)>SLOP)clearTimeout(timer);
+        return;
+      }
+      if(e.cancelable)e.preventDefault();
+      const cy=p.clientY;
+      const over=[...host.querySelectorAll(".bb-gauge")].find(o=>{
+        if(o===el)return false;
+        const r=o.getBoundingClientRect();
+        return cy>r.top&&cy<r.bottom;
+      });
+      if(over){
+        const r=over.getBoundingClientRect();
+        host.insertBefore(el,cy<r.top+r.height/2?over:over.nextSibling);
+      }
+    };
+    el.addEventListener("touchstart",down,{passive:true});
+    el.addEventListener("touchmove",move,{passive:false});
+    el.addEventListener("touchend",cleanup);
+    el.addEventListener("touchcancel",cleanup);
+    el.addEventListener("mousedown",down);
+    el.addEventListener("mousemove",move);
+    el.addEventListener("mouseup",cleanup);
+    el.addEventListener("mouseleave",()=>{if(!armed)clearTimeout(timer)});
   });
 }
 
@@ -1020,12 +1032,18 @@ function stopClockUI(){clearInterval(WO.clockInt);WO.clockStart=null;updateClock
 function finishWorkout(){
   const sess=getSess(WO.dayId,WO.date)||{};
   let sets=0,ton=0;
-  Object.keys(sess).forEach(k=>{if(k.startsWith("_"))return;(sess[k]||[]).forEach(s=>{if(s&&s.done){sets++;if(s.w&&s.r)ton+=s.w*s.r}})});
+  (DAYS[WO.dayId].exercises||[]).forEach(ex=>(sess[ex.id]||[]).forEach(x=>{
+    if(setDone(x)){sets++;ton+=setTonnage(ex,x)}}));
+  // anything logged against an exercise since removed from the program
+  let retired=0;
+  Object.keys(sess).forEach(k=>{if(k.startsWith("_")||findEx(k))return;
+    (sess[k]||[]).forEach(x=>{if(setDone(x))retired++})});
   if(WO.clockStart)toggleClock();
   openSheet(`<div class="sheet-title">Session complete 💪</div>
     <div class="kpi3"><div class="kpi"><div class="kpi-l">Sets done</div><div class="kpi-v">${sets}</div></div>
     <div class="kpi"><div class="kpi-l">Tonnage</div><div class="kpi-v">${Math.round(ton).toLocaleString()}<small> kg</small></div></div>
     <div class="kpi"><div class="kpi-l">Avg RPE</div><div class="kpi-v">${sessionRPE(WO.dayId,WO.date)||"—"}</div></div></div>
+    ${retired?`<div class="tiny mb12" style="color:var(--sky)">Plus ${retired} sets logged against exercises no longer in your program — still saved, visible in Session history.</div>`:""}
     <div class="subtle mb12">Every set is saved. Next session, the app will tell you exactly what to beat.</div>
     <button class="btn btn-volt btn-full" onclick="closeSheet();go('home')">Done</button>`);
 }
@@ -2803,6 +2821,10 @@ function sessionRPE(dayId,date){
 }
 
 /* ══════════ 2. SESSION HISTORY ══════════ */
+/* Names for exercises removed from the program, so old sessions still read properly */
+const RETIRED_NAMES={pushdown:"Cable Tricep Pushdown",hang:"Dead Hang",hang3:"Dead Hang",
+lunge:"Smith Machine Lunge",plank:"Plank",srow:"Cable Seated Row",rackpull:"Rack Pull",
+pullthr:"Cable Pull-Through",farmers2:"Farmer's Carry"};
 function allSessions(){
   const out=[];
   DAY_ORDER.forEach(dayId=>sessDates(dayId).forEach(date=>{
@@ -2813,6 +2835,14 @@ function allSessions(){
       if(!done.length)return;
       sets+=done.length;done.forEach(x=>ton+=setTonnage(ex,x));
       exes.push({ex,sets:s[ex.id]});
+    });
+    // exercises you've since removed — keep them visible so nothing looks lost
+    Object.keys(s).forEach(k=>{
+      if(k.startsWith("_")||findEx(k))return;
+      const done=(s[k]||[]).filter(setDone);
+      if(!done.length)return;
+      sets+=done.length;
+      exes.push({ex:{id:k,name:RETIRED_NAMES[k]||k,retired:true},sets:s[k]});
     });
     if(sets)out.push({dayId,date,sets,ton:Math.round(ton),exes,dur:s._dur,rpe:sessionRPE(dayId,date),notes:s._notes||{}});
   }));
@@ -2850,7 +2880,7 @@ function renderHistory(){
         }).join("");
         const note=s.notes[e.ex.id];
         return`<div style="padding:9px 0;border-bottom:1px solid #1a1d26">
-          <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">${esc(e.ex.name)}</div>
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">${esc(e.ex.name)}${e.ex.retired?' <span class="pill" style="font-size:9px">retired</span>':""}</div>
           <div class="row" style="flex-wrap:wrap;gap:5px">${cells}</div>
           ${note?`<div class="tiny mt8" style="color:var(--muted)">“${esc(note)}”</div>`:""}</div>`;
       }).join(""):"";
