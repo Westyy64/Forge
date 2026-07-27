@@ -574,7 +574,12 @@ const TIPS={
 };
 /* The eight that define the goals: three barbell strength benchmarks,
    two carries (goal 1), and three that drive visible upper-body mass. */
-const BIG_FOUR=["deadlift","zercher","squat","bench","farmers","bbrow","shoulder","shrug"];
+const BIG_DEFAULT=["bench","squat","deadlift","bbrow","zercher","farmers","shoulder","shrug"];
+function bigList(){
+  const saved=(DB.bigOrder||[]).filter(id=>findEx(id));
+  const rest=BIG_DEFAULT.filter(id=>saved.indexOf(id)<0&&findEx(id));
+  return saved.concat(rest);
+}
 const TYPE_META={compound:{c:"var(--volt)",l:"Compound",rest:150,tag:"tag-c",restLbl:"2–3 min rest"},isolation:{c:"var(--ember)",l:"Isolation",rest:75,tag:"tag-i",restLbl:"60–90 s rest"},finisher:{c:"var(--iris)",l:"Finisher",rest:60,tag:"tag-f",restLbl:"60 s rest"}};
 let DAY_ORDER=["day1","day2","day3","day4"];
 const DEFAULT_DAYS=JSON.parse(JSON.stringify(DAYS)),DEFAULT_ORDER=DAY_ORDER.slice();
@@ -725,30 +730,80 @@ function renderHome(){
 }
 function findEx(exId){for(const d of DAY_ORDER){const e=DAYS[d].exercises.find(x=>x.id===exId);if(e)return e}return null}
 
-/* Big Four — loaded-barbell goal gauges (signature) */
+/* Big Eight — loaded-barbell goal gauges. Long-press to drag into your own order. */
 function renderBigFour(){
   let h="";
-  BIG_FOUR.forEach(exId=>{
+  bigList().forEach(exId=>{
     const t=getTarget(exId);if(!t)return;
-    const g={target:Math.round(targetScore(t,exId)),label:(findEx(exId)||{}).name},hist=exHistory(exId);
-    const best=hist.length?Math.max(...hist.map(x=>x.e)):0;
-    const pct=Math.min(best/g.target,1);
-    const ex=findEx(exId);
-    // barbell svg: sleeve fills with plates as pct grows (max 6 plates/side)
+    const ex=findEx(exId);if(!ex)return;
+    const goal=t.w||t.r;
+    const cur=currentAtGoalReps(exId);
+    const pct=Math.min(goal?cur/goal:0,1);
+    const unit=ex.timed||t.w===0?"sec":"kg";
+    const detail=ex.timed||t.w===0?"held":ex.carry?`over ${t.r} m`:`for ${t.r} reps`;
     const plates=Math.round(pct*6);
+    const col=pct>=1?"#34d77b":"#e3ff3f";
     let svg=`<svg class="bb-svg" viewBox="0 0 340 34" preserveAspectRatio="none" aria-hidden="true">`;
     svg+=`<rect x="8" y="15" width="324" height="4" rx="2" fill="#31353f"/>`;
-    svg+=`<rect x="8" y="15" width="${8+316*pct}" height="4" rx="2" fill="${pct>=1?"#34d77b":"#e3ff3f"}"/>`;
+    svg+=`<rect x="8" y="15" width="${8+316*pct}" height="4" rx="2" fill="${col}"/>`;
     for(let i=0;i<6;i++){
-      const filled=i<plates;const x1=30+i*16,x2=310-i*16,hgt=22-i*2,y=17-hgt/2;
-      svg+=`<rect x="${x1}" y="${y}" width="9" height="${hgt}" rx="2" fill="${filled?(pct>=1?"#34d77b":"#e3ff3f"):"#232733"}"/>`;
-      svg+=`<rect x="${x2}" y="${y}" width="9" height="${hgt}" rx="2" fill="${filled?(pct>=1?"#34d77b":"#e3ff3f"):"#232733"}"/>`;
+      const filled=i<plates,x1=30+i*16,x2=310-i*16,hgt=22-i*2,y=17-hgt/2;
+      svg+=`<rect x="${x1}" y="${y}" width="9" height="${hgt}" rx="2" fill="${filled?col:"#232733"}"/>`;
+      svg+=`<rect x="${x2}" y="${y}" width="9" height="${hgt}" rx="2" fill="${filled?col:"#232733"}"/>`;
     }
     svg+=`</svg>`;
-    h+=`<div class="bb-gauge"><div class="bb-head"><div class="bb-name">${ex?ex.name:exId}${pct>=1?" 🏆":""}</div><div class="bb-nums"><b>${best||0}</b> / ${g.target} kg e1RM</div></div>${svg}</div>`;
+    h+=`<div class="bb-gauge" data-big="${exId}" style="touch-action:pan-y">
+      <div class="bb-head"><div class="bb-name">${esc(ex.name)}${pct>=1?" 🏆":""}</div>
+      <div class="bb-nums"><b>${cur||0}</b> / ${goal} ${unit} <span style="color:var(--dim)">${detail}</span></div></div>${svg}</div>`;
   });
-  h+=`<div class="tiny">Estimated one-rep max from your best logged set. Fill all six plates to claim the bar. Targets are editable in More → Goals.</div>`;
+  h+=`<div class="tiny">Your best weight <b style="color:var(--muted)">at the goal's rep count</b>, worked out from your heaviest set. Hold a bar for 3 seconds to drag it into your own order.</div>`;
   $("bigfour").innerHTML=h;
+  attachBigDrag();
+}
+/* long-press then drag to reorder */
+let BIGDRAG=null;
+function attachBigDrag(){
+  const host=$("bigfour");if(!host)return;
+  host.querySelectorAll(".bb-gauge").forEach(el=>{
+    let timer=null,armed=false;
+    const y=e=>(e.touches?e.touches[0].clientY:e.clientY);
+    const start=e=>{
+      const startY=y(e);
+      timer=setTimeout(()=>{
+        armed=true;haptic(30);
+        el.style.transition="transform .12s";el.style.transform="scale(1.03)";
+        el.style.boxShadow="0 6px 22px rgba(0,0,0,.5)";el.style.opacity=".95";
+        BIGDRAG={el,startY,order:[...host.querySelectorAll(".bb-gauge")]};
+      },3000);
+      const cancel=()=>{if(!armed)clearTimeout(timer)};
+      el.addEventListener("touchmove",cancel,{once:true});
+      el.addEventListener("touchend",()=>{clearTimeout(timer);if(!armed)return;},{once:true});
+    };
+    el.addEventListener("touchstart",start,{passive:true});
+    el.addEventListener("mousedown",start);
+    el.addEventListener("touchmove",e=>{
+      if(!armed||!BIGDRAG)return;
+      e.preventDefault();
+      const cy=y(e);
+      const over=[...host.querySelectorAll(".bb-gauge")].find(o=>{
+        if(o===el)return false;const r=o.getBoundingClientRect();
+        return cy>r.top&&cy<r.bottom;
+      });
+      if(over){const r=over.getBoundingClientRect();
+        host.insertBefore(el,cy<r.top+r.height/2?over:over.nextSibling)}
+    },{passive:false});
+    const drop=()=>{
+      clearTimeout(timer);
+      if(!armed)return;armed=false;
+      el.style.transform="";el.style.boxShadow="";el.style.opacity="";
+      DB.bigOrder=[...host.querySelectorAll(".bb-gauge")].map(o=>o.dataset.big);
+      save();BIGDRAG=null;toast("Order saved");
+    };
+    el.addEventListener("touchend",drop);
+    el.addEventListener("touchcancel",drop);
+    el.addEventListener("mouseup",drop);
+    el.addEventListener("mouseleave",()=>{clearTimeout(timer)});
+  });
 }
 
 /* ---------- TRAIN: day list ---------- */
@@ -2901,6 +2956,15 @@ function getTarget(exId){
   if(DB.targets&&DB.targets[exId])return DB.targets[exId];
   return DEFAULT_TARGETS[exId]||null;
 }
+/* Weight you could lift for the goal rep count, back-calculated from your best
+   set. Speaks the same language as the goal: "62 of 90 kg for 8". */
+function weightAtReps(e,reps){return e&&reps?Math.round(e/(1+reps/30)*10)/10:0}
+function goalReps(exId){const t=getTarget(exId);return t?t.r:8}
+function currentAtGoalReps(exId){
+  const ex=findEx(exId);if(!ex)return 0;
+  if(ex.carry||ex.timed||(getTarget(exId)||{}).w===0)return currentScore(exId);
+  return weightAtReps(currentScore(exId),goalReps(exId));
+}
 function targetScore(t,exId){
   if(!t)return 0;
   const ex=exId?findEx(exId):null;
@@ -2974,7 +3038,7 @@ function renderTargets(){
           <div style="font-size:13px;font-weight:600;flex:1;min-width:0">${esc(ex.name)}${hit?" 🏆":""}</div>
           <div class="mono" style="font-size:11.5px;color:${col};flex:0 0 auto">${pct}%</div></div>
         <div class="vol-track mt8"><div class="vol-fill" style="width:${pct}%;background:${col}"></div></div>
-        <div class="tiny mt8">${t.w===0?`${Math.round(cur)} sec`:`${Math.round(cur*10)/10} kg`} of <b style="color:var(--muted)">${targetLabel(ex.id)}</b>${t.w===0||ex.carry?"":" · est. max"}</div>
+        <div class="tiny mt8">${t.w===0?`${Math.round(cur)} sec`:`${currentAtGoalReps(ex.id)} kg`} of <b style="color:var(--muted)">${targetLabel(ex.id)}</b>${t.w===0||ex.carry?"":` · your best at ${t.r} reps`}</div>
       </div>`);
     });
   });
@@ -2987,7 +3051,7 @@ function renderTargets(){
       <div class="tiny">${done} of ${all.length} lifts at target</div></div>
     <div class="vol-track mt12"><div class="vol-fill" style="width:${overall}%;background:linear-gradient(90deg,var(--sky),var(--volt),var(--pos))"></div></div>
     ${rows.join("")}
-    <div class="tiny mt12">Tap any lift to change its target. Progress uses estimated 1-rep max, so extra reps count as well as extra weight.</div></div>`;
+    <div class="tiny mt12">Tap any lift to change its target. Figures are your best weight at the goal's rep count, so extra reps count as well as extra weight.</div></div>`;
 }
 
 /* ---------- INIT ---------- */
