@@ -302,7 +302,7 @@ a{color:var(--sky);text-decoration:none}
       </div>
     </div>
     <div class="mt24">
-      <div class="sec-title">The Big Four</div>
+      <div class="sec-title">The Big Eight</div>
       <div class="card" id="bigfour"></div>
     </div>
     <div class="mt16" id="home-alert"></div>
@@ -392,6 +392,13 @@ a{color:var(--sky);text-decoration:none}
       <div id="pr-list"></div>
     </div>
   </div>
+</div>
+
+<!-- ═══════════ GOALS ═══════════ -->
+<div id="scr-goals" class="screen">
+  <div class="wo-topbar"><button class="back-btn" onclick="go('more')" aria-label="Back">‹</button><div class="wo-topname">Goals</div></div>
+  <div class="wrap"><div class="subtle mb16">The weight and reps that mean you've hit your goal on each lift. Tap any one to change it.</div>
+  <div id="goals-body"></div></div>
 </div>
 
 <!-- ═══════════ SESSION HISTORY ═══════════ -->
@@ -492,44 +499,46 @@ a{color:var(--sky);text-decoration:none}
 
 /* ---------- PROGRAM (from your existing plan) ---------- */
 let DAYS={
-  day1:{label:"Day 1 · Push",short:"PUSH",sub:"Chest · Shoulders · Triceps · Grip",dur:"~60 min",exercises:[
+  day1:{label:"Day 1 · Push",short:"PUSH",sub:"Chest · Shoulders · Triceps",dur:"~60 min",exercises:[
     {id:"bench",name:"Barbell Bench Press",type:"compound",sets:4,reps:"6–8",muscle:"Chest",equip:"Rack + barbell (20 kg bar)"},
-    {id:"incline",name:"Smith Incline Press",type:"compound",sets:4,reps:"8–12",muscle:"Chest",equip:"Smith machine + bench (16 kg bar)"},
-    {id:"shoulder",name:"Smith Shoulder Press",type:"compound",sets:3,reps:"8–12",muscle:"Shoulders",equip:"Smith machine + bench (16 kg bar)"},
     {id:"facepull",name:"Cable Face Pulls",type:"isolation",sets:3,reps:"15",muscle:"Shoulders",equip:"Cable + rope, set at face height"},
-    {id:"ohtri",name:"Overhead Cable Tricep Extension",type:"isolation",sets:3,reps:"10–12",muscle:"Arms",equip:"Cable low + rope, face away, elbows high beside your ears"},
+    {id:"incline",name:"Smith Incline Press",type:"compound",sets:4,reps:"8–12",muscle:"Chest",equip:"Smith machine + bench (15 kg bar)"},
     {id:"lateral",name:"Cable Lateral Raise (1 arm)",type:"isolation",sets:4,reps:"12–15 each",muscle:"Shoulders",equip:"Cable pulley handle — builds shoulder width"},
+    {id:"shoulder",name:"Smith Shoulder Press",type:"compound",sets:3,reps:"8–12",muscle:"Shoulders",equip:"Smith machine + bench (15 kg bar)"},
     {id:"chestfly",name:"Cable Chest Fly",type:"isolation",sets:3,reps:"12–15",muscle:"Chest",equip:"Cable machine — squeeze at centre"},
+    {id:"ohtri",name:"Overhead Cable Tricep Extension",type:"isolation",sets:3,reps:"10–12",muscle:"Arms",equip:"Cable low + rope, face away, elbows high beside your ears"},
   ]},
-  day2:{label:"Day 2 · Lower A",short:"LOWER A",sub:"Quads · Glutes · Hamstrings · Core",dur:"~65 min",exercises:[
+  day2:{label:"Day 2 · Lower A",short:"LOWER A",sub:"Quads · Glutes · Hamstrings · Core",dur:"~60 min",exercises:[
     {id:"squat",name:"Barbell Back Squat",type:"compound",sets:4,reps:"5–8",muscle:"Legs",equip:"Rack + barbell (20 kg bar)"},
-    {id:"zercher",name:"Zercher Squat + 20 m Carry",type:"compound",sets:3,reps:"8",muscle:"Legs",equip:"Bar in the crook of your elbows — squat, then walk 20 m carrying it"},
-    {id:"rdl",name:"Romanian Deadlift",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Barbell (20 kg bar)"},
-    {id:"farmers",name:"Farmer's Carry",type:"compound",sets:4,reps:"30 m each",muscle:"Grip",equip:"Barbell loaded — log kg carried",carry:true},
     {id:"crunch",name:"Cable Crunch",type:"isolation",sets:3,reps:"15–20",muscle:"Core",equip:"Cable + bar — kneel, crunch abs down"},
+    {id:"rdl",name:"Romanian Deadlift",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Barbell (20 kg bar)"},
     {id:"calf2",name:"Smith Calf Raise",type:"isolation",sets:3,reps:"15–20",muscle:"Legs",equip:"Smith machine — second calf session of the week"},
+    {id:"zercher",name:"Zercher Squat + 20 m Carry",type:"compound",sets:3,reps:"8",muscle:"Legs",equip:"Bar in the crook of your elbows — squat, then walk 20 m carrying it"},
+    {id:"farmers",name:"Farmer's Carry",type:"compound",sets:4,reps:"30 m each",muscle:"Grip",equip:"Barbell loaded — log kg carried",carry:true},
   ]},
-  day3:{label:"Day 3 · Pull",short:"PULL",sub:"Back · Biceps · Rear Delts · Grip",dur:"~60 min",exercises:[
-    {id:"pullup",name:"Cable Lat Pulldown (Wide)",type:"compound",sets:4,reps:"8–12",muscle:"Back",equip:"Cable + wide bar — pull-up substitute for now"},
+  day3:{label:"Day 3 · Pull",short:"PULL",sub:"Back · Traps · Biceps · Grip",dur:"~60 min",exercises:[
     {id:"bbrow",name:"Barbell Bent-Over Row",type:"compound",sets:4,reps:"6–8",muscle:"Back",equip:"Barbell (20 kg bar)"},
-    {id:"lmrow",name:"Landmine Single-Arm Row",type:"compound",sets:3,reps:"10–12 each",muscle:"Back",equip:"Landmine — brace core, pull elbow back"},
     {id:"curl",name:"Cable Bicep Curl",type:"isolation",sets:3,reps:"12–15",muscle:"Arms",equip:"Cable straight bar"},
     {id:"shrug",name:"Barbell Shrug",type:"isolation",sets:4,reps:"10–15",muscle:"Back",equip:"Barbell — shrug straight up, 1 s hold"},
-    {id:"wrist",name:"Cable Wrist Curl",type:"finisher",sets:4,reps:"15–20",muscle:"Grip",equip:"Cable low, forearms on thighs — 2 sets underhand (flexors), then 2 sets overhand (extensors)"},
+    {id:"wrist",name:"Cable Wrist Curl",type:"finisher",sets:4,reps:"15–20",muscle:"Grip",equip:"Cable low, forearms on thighs — 2 sets underhand, then 2 overhand"},
+    {id:"pullup",name:"Cable Lat Pulldown (Wide)",type:"compound",sets:4,reps:"8–12",muscle:"Back",equip:"Cable + wide bar — swap to pull-ups once you max the stack"},
+    {id:"lmrow",name:"Landmine Single-Arm Row",type:"compound",sets:3,reps:"10–12 each",muscle:"Back",equip:"Landmine — brace core, pull elbow back"},
   ]},
-  day4:{label:"Day 4 · Lower B",short:"LOWER B",sub:"Posterior chain · Glutes · Core",dur:"~65 min",exercises:[
+  day4:{label:"Day 4 · Lower B",short:"LOWER B",sub:"Posterior chain · Glutes · Core",dur:"~60 min",exercises:[
     {id:"deadlift",name:"Barbell Deadlift",type:"compound",sets:4,reps:"4–6",muscle:"Legs",equip:"Rack + barbell (20 kg bar)"},
     {id:"hipthrust",name:"Smith Hip Thrust",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Smith machine + bench — go heavy"},
-    {id:"calf4",name:"Smith Calf Raise",type:"isolation",sets:4,reps:"15–20",muscle:"Legs",equip:"Smith machine (16 kg bar)"},
     {id:"lmtwist",name:"Landmine Twist",type:"isolation",sets:3,reps:"12 each",muscle:"Core",equip:"Landmine — rotate side to side, straight arms"},
+    {id:"calf4",name:"Smith Calf Raise",type:"isolation",sets:4,reps:"15–20",muscle:"Legs",equip:"Smith machine (15 kg bar)"},
     {id:"hollow",name:"Hollow Body Hold",type:"finisher",sets:3,reps:"30 sec",muscle:"Core",equip:"Floor — brace, legs 45°, log seconds",timed:true},
   ]}
 };
+/* Each pair is adjacent in the list above, so the running order is simply
+   top to bottom: heavy lift, then its unrelated partner, then rest.        */
 const SUPERSETS={
   day1:[["bench","facepull"],["incline","lateral"],["shoulder","chestfly"]],
   day2:[["squat","crunch"],["rdl","calf2"]],
-  day3:[["bbrow","curl"],["lmrow","wrist"]],
-  day4:[["hipthrust","lmtwist"],["deadlift","hollow"]]
+  day3:[["bbrow","curl"],["shrug","wrist"]],
+  day4:[["hipthrust","lmtwist"],["calf4","hollow"]]
 };
 const TIPS={
   bench:"Arch back, retract shoulder blades, tuck elbows slightly. Lower to chest, press up explosively.",
@@ -563,7 +572,9 @@ const TIPS={
   lmtwist:"Face the plate, arms straight. Rotate side to side from the core, not the arms.",
   hollow:"Lower back glued to floor. Legs at 45°, arms overhead. Log the seconds."
 };
-const LIFT_GOALS={bench:{target:100,label:"Bench 100 kg"},squat:{target:100,label:"Squat 100 kg"},deadlift:{target:100,label:"Deadlift 100 kg"},hipthrust:{target:85,label:"Hip Thrust 85 kg"}};
+/* The eight that define the goals: three barbell strength benchmarks,
+   two carries (goal 1), and three that drive visible upper-body mass. */
+const BIG_FOUR=["deadlift","zercher","squat","bench","farmers","bbrow","shoulder","shrug"];
 const TYPE_META={compound:{c:"var(--volt)",l:"Compound",rest:150,tag:"tag-c",restLbl:"2–3 min rest"},isolation:{c:"var(--ember)",l:"Isolation",rest:75,tag:"tag-i",restLbl:"60–90 s rest"},finisher:{c:"var(--iris)",l:"Finisher",rest:60,tag:"tag-f",restLbl:"60 s rest"}};
 let DAY_ORDER=["day1","day2","day3","day4"];
 const DEFAULT_DAYS=JSON.parse(JSON.stringify(DAYS)),DEFAULT_ORDER=DAY_ORDER.slice();
@@ -638,6 +649,7 @@ function go(name){
   if(name==="more")renderMore();
   if(name==="editor")renderEditor();
   if(name==="history")renderHistory();
+  if(name==="goals")$("goals-body").innerHTML=renderTargets();
   $("scr-"+name).scrollTop=0;
 }
 /* ---------- HOME ---------- */
@@ -716,8 +728,9 @@ function findEx(exId){for(const d of DAY_ORDER){const e=DAYS[d].exercises.find(x
 /* Big Four — loaded-barbell goal gauges (signature) */
 function renderBigFour(){
   let h="";
-  Object.keys(LIFT_GOALS).forEach(exId=>{
-    const g=LIFT_GOALS[exId],hist=exHistory(exId);
+  BIG_FOUR.forEach(exId=>{
+    const t=getTarget(exId);if(!t)return;
+    const g={target:Math.round(targetScore(t,exId)),label:(findEx(exId)||{}).name},hist=exHistory(exId);
     const best=hist.length?Math.max(...hist.map(x=>x.e)):0;
     const pct=Math.min(best/g.target,1);
     const ex=findEx(exId);
@@ -734,7 +747,7 @@ function renderBigFour(){
     svg+=`</svg>`;
     h+=`<div class="bb-gauge"><div class="bb-head"><div class="bb-name">${ex?ex.name:exId}${pct>=1?" 🏆":""}</div><div class="bb-nums"><b>${best||0}</b> / ${g.target} kg e1RM</div></div>${svg}</div>`;
   });
-  h+=`<div class="tiny">e1RM = estimated one-rep max from your best logged set (Epley). Fill all six plates to claim the bar.</div>`;
+  h+=`<div class="tiny">Estimated one-rep max from your best logged set. Fill all six plates to claim the bar. Targets are editable in More → Goals.</div>`;
   $("bigfour").innerHTML=h;
 }
 
@@ -775,12 +788,11 @@ function buildWorkout(){
   const dayId=WO.dayId,sess=getSess(dayId,WO.date)||{};
   const lastDate=lastSessionBefore(dayId,WO.date);
   let h="";
-  ["compound","isolation","finisher"].forEach(type=>{
-    const exes=DAYS[dayId].exercises.filter(e=>e.type===type);
-    if(!exes.length)return;
-    const m=TYPE_META[type];
-    h+=`<div class="grp"><div class="grp-hdr"><div class="grp-dot" style="background:${m.c}"></div><div class="grp-lbl">${m.l}</div><div class="grp-line"></div><div class="grp-rest">${m.restLbl}</div></div>`;
-    exes.forEach(ex=>{
+  // Render in program order — the list IS the running order, so supersets read
+  // top to bottom. Rest guidance moves onto each card instead of grouping.
+  (DAYS[dayId].exercises||[]).forEach(ex=>{
+    const m=TYPE_META[ex.type]||TYPE_META.isolation;
+    {
       const ss=ssInfo(dayId,ex.id);
       const prevBest=lastDate?bestSet(dayId,lastDate,ex.id):null;
       const hist=exHistory(ex.id).filter(x=>x.date<WO.date);
@@ -797,12 +809,12 @@ function buildWorkout(){
           <button class="rpe-btn" id="rpe-${ex.id}-${i}" onclick="rpeSheet('${ex.id}',${i})" aria-label="Rate this set" style="color:${s.rpe?rpeColor(s.rpe):"var(--dim)"};border-color:${s.rpe?rpeColor(s.rpe):"var(--line)"}">${s.rpe||"–"}</button>
           <button class="set-go${s.done?" on":""}" id="g-${ex.id}-${i}" onclick="logSet('${ex.id}',${i})" aria-label="Log set">✓</button></div>`;
       }
-      const wUnit=ex.timed?"—":ex.carry?"kg":"kg", rUnit=ex.timed?"sec":ex.carry?"m":"reps";
-      h+=`<div class="ex${doneAll?" done":""}" id="ex-${ex.id}">
+      const wUnit=ex.timed?"—":"kg", rUnit=ex.timed?"sec":ex.carry?"m":"reps";
+      h+=`<div class="grp" style="margin-top:14px"><div class="ex${doneAll?" done":""}" id="ex-${ex.id}">
         <div class="ex-hd" onclick="toggleEx('${ex.id}')">
           <div class="row" style="flex:1;gap:10px;align-items:flex-start"><div style="flex:1;min-width:0"><div class="ex-name">${esc(ex.name)}</div>
-            <div class="ex-meta"><span class="tag ${m.tag}">${m.l}</span><span class="pill">${ex.sets} × ${ex.reps}</span><span class="pill">${ex.muscle}</span>${ss?`<span class="tag ss-tag">SS·${ss.order}</span>`:""}</div>
-            <div class="ex-equip">${ex.equip}</div>
+            <div class="ex-meta"><span class="tag ${m.tag}">${m.l}</span><span class="pill">${ex.sets} × ${ex.reps}</span><span class="pill">${esc(ex.muscle)}</span>${ss?`<span class="tag ss-tag">SS·${ss.order}</span>`:`<span class="pill">${m.restLbl}</span>`}</div>
+            <div class="ex-equip">${esc(ex.equip||"")}</div>
             ${rec&&rec.note?`<div class="tiny mt8" style="color:var(--volt)">▸ ${rec.note}</div>`:""}
           </div>${miniBody(ex.id,ex.muscle)}</div>
           <button class="ex-check" onclick="event.stopPropagation();toggleDone('${ex.id}')" aria-label="Mark complete">✓</button>
@@ -814,15 +826,13 @@ function buildWorkout(){
           <div class="ex-tools">
             ${ex.type==="compound"&&!ex.timed?`<button class="tool-btn" onclick="warmupSheet('${ex.id}')">⚡ Warm-up</button><button class="tool-btn" onclick="plateSheet('${ex.id}')">🏋 Plates</button>`:""}
             <button class="tool-btn" onclick="tipSheet('${ex.id}')">📖 Form</button>
-
           </div>
           <textarea class="ex-note" id="note-${ex.id}" rows="1" placeholder="Notes — pain, tempo, machine setting…" oninput="setNote('${ex.id}',this.value)">${esc((sess._notes||{})[ex.id]||"")}</textarea>
           <div class="pr-flash" id="pr-${ex.id}"></div>
         </div>
-      </div>`;
+      </div></div>`;
       if(ss&&ss.order==="A")h+=`<div class="ss-link"><i></i><span>↓ superset — no rest, go straight on</span></div>`;
-    });
-    h+=`</div>`;
+    }
   });
   $("wo-body").innerHTML=h;
   updateProgressBar();
@@ -910,7 +920,7 @@ function checkPR(exId,s){
   if(s.w>bestW){msg=`🏆 Weight PR — ${s.w} kg on ${esc(ex.name)}!`;DB.prs.push({exId,type:"kg top set",val:s.w,date:WO.date})}
   else if(nowE>bestE){msg=`🔥 e1RM PR — ${nowE} kg estimated max!`;DB.prs.push({exId,type:"e1rm",val:nowE,date:WO.date})}
   if(msg){save();const el=$("pr-"+exId);el.textContent=msg;el.style.display="block";confetti();haptic([30,50,30]);toast(msg,true);
-    const g=LIFT_GOALS[exId];if(g&&nowE>=g.target)setTimeout(()=>toast(`⚡ GOAL SMASHED: ${g.label}`,true),1500)}
+    const t=getTarget(exId);if(t&&t.w>0&&!(findEx(exId)||{}).carry&&nowE>=targetScore(t,exId))setTimeout(()=>toast(`⚡ GOAL SMASHED: ${(findEx(exId)||{}).name}`,true),1500)}
 }
 function sparkline(hist){
   const pts=hist.slice(-10).map(x=>x.e);const min=Math.min(...pts),max=Math.max(...pts),rng=max-min||1;
@@ -1272,7 +1282,7 @@ function renderLiftChart(){
   if(!ex){card.innerHTML=`<div class="empty">Add an exercise to your program to chart it.</div>`;return}
   const hist=exHistory(exId);
   if(hist.length<2){card.innerHTML=`<div class="chart-kick">${esc(ex.name)}</div><div class="empty">Log this lift in two sessions to unlock the chart.</div>`;return}
-  const g=LIFT_GOALS[exId];
+  const _t=getTarget(exId);const g=_t&&_t.w>0?{target:Math.round(targetScore(_t,exId))}:null;
   const pts=hist.slice(-20);
   const W=320,H=150,PL=32,PR=8,PT=12,PB=20;
   const vals=pts.map(p=>p.e);const gv=g?g.target:0;
@@ -1504,7 +1514,7 @@ const SEED_FOODS=[
 {label:"MMC Lo-Cal Honey Soy Chicken & Rice 330g",cal:370,pro:23.8,carb:54.8,fat:5}];
 
 /* ---------- migrate old shapes, seed the food library ---------- */
-const PROG_VERSION=3;
+const PROG_VERSION=5;
 function v2migrate(){
   // one-off: adopt the rebuilt 4-day program. Logged sessions are untouched —
   // history for removed exercises stays in your data, it just stops displaying.
@@ -1512,7 +1522,7 @@ function v2migrate(){
     if((DB.progVersion||0)<PROG_VERSION){
       DB.program=null;DAYS=JSON.parse(JSON.stringify(DEFAULT_DAYS));DAY_ORDER=DEFAULT_ORDER.slice();
       DB.progVersion=PROG_VERSION;
-      setTimeout(()=>toast("Program updated — 23 exercises across 4 days",true),1200);
+      setTimeout(()=>toast("Program updated — supersets now run top to bottom",true),1200);
     }
   }catch(e){}
   // one-off: wrist curl became 4 sets (2 underhand + 2 overhand)
@@ -2165,7 +2175,10 @@ renderMore=function(){
     const d=document.createElement("div");
     d.id="v2-settings";
     d.innerHTML=`<div class="sec-title mt16">Your program</div>
-      <div class="card"><div class="set-item" onclick="go('editor')"><div><div class="set-item-l">Edit exercises &amp; days</div><div class="set-item-d">Rename, reorder, add or remove anything</div></div><div class="set-item-r">›</div></div></div>
+      <div class="card">
+        <div class="set-item" onclick="go('goals')"><div><div class="set-item-l">Goals</div><div class="set-item-d">Target weight and reps for every lift</div></div><div class="set-item-r" id="s-goals">—</div></div>
+        <div class="set-item" onclick="go('editor')"><div><div class="set-item-l">Edit exercises &amp; days</div><div class="set-item-d">Rename, reorder, add or remove anything</div></div><div class="set-item-r">›</div></div>
+      </div>
       <div class="sec-title mt16">Fitbit sync</div>
       <div class="card" id="fb-card"></div>
       <div class="sec-title mt16">Auto-logging</div>
@@ -2191,6 +2204,9 @@ renderMore=function(){
   }
   const fbc=$("fb-card");if(fbc)fbc.innerHTML=fbCard();
   const sn=$("s-snaps");if(sn)sn.textContent=snapshots().length||"none";
+  const gl=$("s-goals");
+  if(gl){const a=DAY_ORDER.flatMap(d=>(DAYS[d].exercises||[]).filter(e=>getTarget(e.id)).map(e=>targetPct(e.id)||0));
+    gl.textContent=a.length?a.filter(x=>x>=1).length+" / "+a.length:"—";}
   const ar=$("s-autorest");if(ar)ar.textContent=DB.prefs.autoRest?"On":"Off";
   const set=(id,v)=>{const el=$(id);if(el)el.textContent=v};
   set("s-asteps",DB.prefs.autoSteps);set("s-akcal",DB.prefs.autoKcal);set("s-aprot",DB.prefs.autoProt+" g");
@@ -2322,10 +2338,15 @@ function miniBody(exId,muscle){
   const d=exDetail(ex),hit=[];
   Object.keys(COARSE_SUBS).forEach(c=>{if(COARSE_SUBS[c].some(x=>d.p.indexOf(x)>=0))hit.push(c)});
   let g=`<path d="M13 12 L19 10 L25 12 L26 22 L24 36 L25 44 L24 58 L23 70 L15 70 L14 58 L13 44 L14 36 L12 22 Z" fill="#1a1d26"/>`;
+  // delt/reardelt and bi/tri occupy the same shapes, so every unlit part is
+  // drawn first — otherwise a grey shape paints straight over a lit one.
   MINI_ORDER.forEach(r=>{
-    if(!MINI.parts[r])return;
-    const on=hit.indexOf(r)>=0;
-    g+=`<g fill="${on?"var(--volt)":"#22262f"}" opacity="${on?1:.85}">${MINI.parts[r]}</g>`;
+    if(!MINI.parts[r]||hit.indexOf(r)>=0)return;
+    g+=`<g fill="#22262f" opacity=".85">${MINI.parts[r]}</g>`;
+  });
+  MINI_ORDER.forEach(r=>{
+    if(!MINI.parts[r]||hit.indexOf(r)<0)return;
+    g+=`<g fill="var(--volt)">${MINI.parts[r]}</g>`;
   });
   g+=`<g fill="#2e3342">${MINI.head}</g>`;
   return`<svg viewBox="0 0 38 74" width="26" height="50" aria-hidden="true" style="flex:0 0 auto;opacity:.95">${g}</svg>`;
@@ -2353,7 +2374,7 @@ function ssJump(exId){
   const ss=ssInfo(WO.dayId,exId);if(!ss)return;
   const el=$("ex-"+ss.partner);if(!el)return;
   const body=$("body-"+ss.partner);if(body&&!body.classList.contains("open"))body.classList.add("open");
-  el.scrollIntoView({behavior:"smooth",block:"center"});
+  if(el.scrollIntoView)el.scrollIntoView({behavior:"smooth",block:"center"});
   el.style.transition="box-shadow .3s";el.style.boxShadow="0 0 0 2px var(--sky)";
   setTimeout(()=>el.style.boxShadow="",1400);
 }
@@ -2863,6 +2884,110 @@ function viewBody(){
       return`<div class="hist-row" onclick="editWeight('${e.date}')"><div class="hist-date">${fmtDate(e.date)}</div>
         <div><span class="hist-val">${e.kg} kg</span>${diff!==null?`<span class="hist-diff" style="color:${diff<0?"var(--pos)":diff>0?"var(--neg)":"var(--dim)"}">${diff>0?"+":""}${diff}</span>`:""}</div></div>`}).join("")
       ||`<div class="empty">Weigh in each morning — trends beat single readings.</div>`}</div>`;
+}
+
+/* ══════════ TARGET WEIGHTS — what "done" looks like on every lift ══════════ */
+const DEFAULT_TARGETS={
+bench:{w:90,r:8},incline:{w:60,r:8},shoulder:{w:45,r:8},facepull:{w:50,r:15},
+ohtri:{w:50,r:12},lateral:{w:24,r:15},chestfly:{w:36,r:12},
+squat:{w:125,r:8},zercher:{w:85,r:8},rdl:{w:100,r:10},farmers:{w:100,r:30},
+crunch:{w:80,r:15},calf2:{w:80,r:15},
+pullup:{w:100,r:10},bbrow:{w:80,r:8},lmrow:{w:50,r:10},curl:{w:60,r:12},
+shrug:{w:120,r:12},wrist:{w:50,r:15},
+deadlift:{w:140,r:8},hipthrust:{w:120,r:10},calf4:{w:80,r:15},
+lmtwist:{w:30,r:12},hollow:{w:0,r:60}};
+
+function getTarget(exId){
+  if(DB.targets&&DB.targets[exId])return DB.targets[exId];
+  return DEFAULT_TARGETS[exId]||null;
+}
+function targetScore(t,exId){
+  if(!t)return 0;
+  const ex=exId?findEx(exId):null;
+  if(ex&&ex.carry)return t.w;          // carries: the load you walked with
+  return t.w>0?e1rm(t.w,t.r):t.r;      // timed holds fall back to seconds
+}
+function currentScore(exId){
+  const ex=findEx(exId);if(!ex)return 0;
+  if(ex.carry){                         // heaviest carry logged
+    let best=0;DAY_ORDER.forEach(d=>sessDates(d).forEach(dt=>{
+      ((getSess(d,dt)||{})[exId]||[]).forEach(x=>{if(setDone(x)&&+x.w>best)best=+x.w})}));
+    return best;
+  }
+  const h=exHistory(exId);
+  if(ex.timed||(getTarget(exId)||{}).w===0){
+    let best=0;DAY_ORDER.forEach(d=>sessDates(d).forEach(dt=>{
+      ((getSess(d,dt)||{})[exId]||[]).forEach(x=>{if(setDone(x)&&+x.r>best)best=+x.r})}));
+    return best;
+  }
+  return h.length?Math.max(...h.map(x=>x.e)):0;
+}
+function targetPct(exId){
+  const t=getTarget(exId);if(!t)return null;
+  const goal=targetScore(t,exId);if(!goal)return null;
+  return Math.min(1,currentScore(exId)/goal);
+}
+function targetLabel(exId){
+  const t=getTarget(exId),ex=findEx(exId);if(!t||!ex)return"";
+  if(t.w===0)return`${t.r} sec`;
+  if(ex.carry)return`${t.w} kg · ${t.r} m`;
+  return`${t.w} kg × ${t.r}`;
+}
+function setTarget(exId){
+  const t=getTarget(exId)||{w:0,r:8},ex=findEx(exId);
+  const timed=t.w===0;
+  openSheet(`<div class="sheet-title">Target · ${esc(ex?ex.name:exId)}</div>
+    <div class="subtle mb12">The weight and reps that mean you've hit your goal on this lift.</div>
+    <div class="sets-hdr"><span>${timed?"—":ex&&ex.carry?"kg":"Weight"}</span><span>${timed?"Seconds":ex&&ex.carry?"Metres":"Reps"}</span><span></span></div>
+    <div class="set-row" style="grid-template-columns:1fr 1fr 46px">
+      <input class="inp" id="tg-w" type="number" inputmode="decimal" step="0.5" value="${t.w||""}" placeholder="${timed?"—":"kg"}">
+      <input class="inp" id="tg-r" type="number" inputmode="numeric" value="${t.r||""}">
+      <button class="set-go on" onclick="saveTarget('${exId}')">✓</button></div>
+    <div class="tiny mt12">Progress is measured by estimated 1-rep max, so beating the target on either weight or reps counts.</div>
+    <button class="btn btn-full mt16" onclick="resetTarget('${exId}')">↺ Back to the suggested target</button>
+    <button class="btn btn-ghost btn-full mt8" onclick="closeSheet()">Cancel</button>`);
+}
+function saveTarget(exId){
+  const w=+$("tg-w").value||0,r=+$("tg-r").value||0;
+  if(!r){toast("Enter reps or seconds");return}
+  DB.targets=DB.targets||{};DB.targets[exId]={w,r};save();
+  closeSheet();if(CUR==="progress")renderProgress();if(CUR==="home")renderHome();
+  toast("Target set");
+}
+function resetTarget(exId){
+  if(DB.targets)delete DB.targets[exId];save();closeSheet();
+  if(CUR==="progress")renderProgress();toast("Reset to suggested");
+}
+function renderTargets(){
+  const rows=[];
+  DAY_ORDER.forEach(dayId=>{
+    const list=(DAYS[dayId].exercises||[]).filter(e=>getTarget(e.id));
+    if(!list.length)return;
+    rows.push(`<div class="sec-title mt16" style="font-size:9.5px">${esc(DAYS[dayId].short)}</div>`);
+    list.forEach(ex=>{
+      const p=targetPct(ex.id),t=getTarget(ex.id);
+      const pct=p==null?0:Math.round(p*100);
+      const cur=currentScore(ex.id),hit=pct>=100;
+      const col=hit?"var(--pos)":pct>=66?"var(--volt)":pct>=33?"#f59e0b":"var(--sky)";
+      rows.push(`<div style="padding:11px 0;border-bottom:1px solid #1a1d26" onclick="setTarget('${ex.id}')">
+        <div class="spread" style="align-items:baseline">
+          <div style="font-size:13px;font-weight:600;flex:1;min-width:0">${esc(ex.name)}${hit?" 🏆":""}</div>
+          <div class="mono" style="font-size:11.5px;color:${col};flex:0 0 auto">${pct}%</div></div>
+        <div class="vol-track mt8"><div class="vol-fill" style="width:${pct}%;background:${col}"></div></div>
+        <div class="tiny mt8">${t.w===0?`${Math.round(cur)} sec`:`${Math.round(cur*10)/10} kg`} of <b style="color:var(--muted)">${targetLabel(ex.id)}</b>${t.w===0||ex.carry?"":" · est. max"}</div>
+      </div>`);
+    });
+  });
+  const all=DAY_ORDER.flatMap(d=>(DAYS[d].exercises||[]).filter(e=>getTarget(e.id)).map(e=>targetPct(e.id)||0));
+  const overall=all.length?Math.round(all.reduce((a,b)=>a+b,0)/all.length*100):0;
+  const done=all.filter(x=>x>=1).length;
+  return`<div class="card">
+    <div class="spread" style="align-items:baseline">
+      <div><div class="chart-kick">Overall progress</div><div class="num-lg mt8">${overall}<span style="font-size:13px;color:var(--dim)">%</span></div></div>
+      <div class="tiny">${done} of ${all.length} lifts at target</div></div>
+    <div class="vol-track mt12"><div class="vol-fill" style="width:${overall}%;background:linear-gradient(90deg,var(--sky),var(--volt),var(--pos))"></div></div>
+    ${rows.join("")}
+    <div class="tiny mt12">Tap any lift to change its target. Progress uses estimated 1-rep max, so extra reps count as well as extra weight.</div></div>`;
 }
 
 /* ---------- INIT ---------- */
