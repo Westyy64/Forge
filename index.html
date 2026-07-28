@@ -1731,6 +1731,31 @@ oblique:["oblique"],glute:["glute"],quad:["quad"],ham:["ham"],calf:["calf"]};
 
 /* a set counts once it has weight AND reps, ticked or not */
 function setDone(x){return !!(x&&(x.done||((+x.w||0)>0&&(+x.r||0)>0)||(!!x.done)))}
+/* A set's contribution scales with how hard it was. Unrated sets count as 1,
+   so nothing is penalised for missing RPE. A set that beats your previous best
+   earns a bonus — that's the set that actually drove the adaptation. */
+function effortWeight(x,prBest){
+  let m=1;
+  const rpe=+((x||{}).rpe)||0;
+  if(rpe){
+    if(rpe<=6)m=0.5;
+    else if(rpe<=7)m=0.75;
+    else if(rpe<=9)m=1;
+    else m=1.15;                        // 9.5–10, taken to the limit
+  }
+  if(prBest&&x&&x.w&&x.r&&e1rm(+x.w,+x.r)>prBest)m*=1.25;
+  return Math.round(m*1000)/1000;
+}
+/* best e1RM before this week started — the bar a new PB has to clear */
+const _pwb={};let _pwbKey="";
+function preWeekBest(exId){
+  const k=weekDates()[0]+"|"+DB_REV;
+  if(_pwbKey!==k){for(const p in _pwb)delete _pwb[p];_pwbKey=k}
+  if(_pwb[exId]!==undefined)return _pwb[exId];
+  const start=weekDates()[0];
+  const h=exHistory(exId).filter(x=>x.date<start);
+  return _pwb[exId]=h.length?Math.max(...h.map(x=>x.e)):0;
+}
 function exDetail(ex){
   if(EX_MUSCLES[ex.id])return EX_MUSCLES[ex.id];
   const p=[];(MUSCLE_FALLBACK[ex.muscle]||[]).forEach(r=>(COARSE_SUBS[r]||[r]).forEach(x=>p.push(x)));
@@ -1752,26 +1777,41 @@ let _wsCache=null,_wsKey="";
 function weekSets(off){
   const key=today()+"|"+(off||0)+"|"+DB_REV;   // exact, not a length hash
   if(_wsCache&&_wsKey===key)return _wsCache;
-  const detail={},coarse={},src={},csrc={},wk=weekDates(off||0);
+  const detail={},coarse={},src={},csrc={},rpeBag={},wk=weekDates(off||0);
   DAY_ORDER.forEach(dayId=>wk.forEach(date=>{
     const s=getSess(dayId,date);if(!s)return;
     (DAYS[dayId].exercises||[]).forEach(ex=>{
-      const n=(s[ex.id]||[]).filter(setDone).length;if(!n)return;
+      const done=(s[ex.id]||[]).filter(setDone);
+      const n=done.length;if(!n)return;
+      const prBest=preWeekBest(ex.id);
+      let eff=0,rpeSum=0,rpeN=0,prs=0;
+      done.forEach(x=>{
+        eff+=effortWeight(x,prBest);
+        if(prBest&&x.w&&x.r&&e1rm(+x.w,+x.r)>prBest)prs++;
+        if(+x.rpe){rpeSum+=+x.rpe;rpeN++}
+      });
+      eff=Math.round(eff*100)/100;
       const d=exDetail(ex);
       const add=(bag,srcbag,r,v,label)=>{bag[r]=(bag[r]||0)+v;(srcbag[r]=srcbag[r]||[]).push(label)};
-      d.p.forEach(r=>add(detail,src,r,n,ex.name+" ×"+n));
-      d.s.forEach(r=>add(detail,src,r,n*HALF,ex.name+" ×"+n+" (assists)"));
+      const note=r=>{const b=(rpeBag[r]=rpeBag[r]||{sum:0,n:0,pr:0,raw:0});
+        b.sum+=rpeSum;b.n+=rpeN;b.pr+=prs;b.raw+=n};
+      const tag=ex.name+" ×"+n+(rpeN?" @"+Math.round(rpeSum/rpeN*10)/10:"")+(prs?" 🏆":"");
+      d.p.forEach(r=>{add(detail,src,r,eff,tag);note(r)});
+      d.s.forEach(r=>add(detail,src,r,eff*HALF,ex.name+" ×"+n+" (assists)"));
       Object.keys(COARSE_SUBS).forEach(c=>{
         const subs=COARSE_SUBS[c];
-        if(subs.some(x=>d.p.indexOf(x)>=0))add(coarse,csrc,c,n,ex.name+" ×"+n);
-        else if(subs.some(x=>d.s.indexOf(x)>=0))add(coarse,csrc,c,n*HALF,ex.name+" ×"+n+" (assists)");
+        if(subs.some(x=>d.p.indexOf(x)>=0)){add(coarse,csrc,c,eff,tag);note(c)}
+        else if(subs.some(x=>d.s.indexOf(x)>=0))add(coarse,csrc,c,eff*HALF,ex.name+" ×"+n+" (assists)");
       });
     });
   }));
-  _wsCache={detail,coarse,src,csrc};_wsKey=key;return _wsCache;
+  _wsCache={detail,coarse,src,csrc,rpe:rpeBag};_wsKey=key;return _wsCache;
 }
-function regionSets(detail){const w=weekSets();return detail?{sets:w.coarse,src:w.csrc}:w.coarse}
-function armSets(){const w=weekSets();return{sets:w.detail,src:w.src}}
+function regionSets(detail){const w=weekSets();return detail?{sets:w.coarse,src:w.csrc,rpe:w.rpe}:w.coarse}
+function muscleRPE(r){const b=(weekSets().rpe||{})[r];return b&&b.n?Math.round(b.sum/b.n*10)/10:null}
+function musclePRs(r){const b=(weekSets().rpe||{})[r];return b?b.pr:0}
+function muscleRaw(r){const b=(weekSets().rpe||{})[r];return b?b.raw:0}
+function armSets(){const w=weekSets();return{sets:w.detail,src:w.src,rpe:w.rpe}}
 
 /* which muscles each view can actually show */
 function viewRegions(v){
@@ -1917,7 +1957,8 @@ function renderBodyMap(){
     const n=Math.round((sets[r]||0)*10)/10;
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${REGION_NAME[r]||r}${prm[r]?' <span class="tag tag-c">PB</span>':""}</div>
-      <div class="tiny">${(()=>{const t=targetFor(r);return t?`${heatLabel(n,r)} · aim ${t[0]}–${t[1]} — `:""})()}${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
+      <div class="tiny">${(()=>{const t=targetFor(r);const rp=muscleRPE(r),pr=musclePRs(r);
+        return (t?`${heatLabel(n,r)} · aim ${t[0]}–${t[1]}`:"")+(rp?` · avg RPE ${rp}`:"")+(pr?` · ${pr} PB${pr>1?"s":""}`:"")+" — ";})()}${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
       <div class="hist-val" style="color:${heatColor(n,r)}">${n}</div></div>`;
   }).join("");
   const legend=[[HEAT[0],"not trained"],[HEAT[1],"under target"],[HEAT[2],"on target"],[HEAT[3],"at limit"],[HEAT[4],"over"]];
@@ -1931,7 +1972,7 @@ function renderBodyMap(){
       ${Object.keys(prm).length?`<span class="pill" style="border-color:#eef0f4;color:#eef0f4;border-width:2px">⬤ white ring = PB this week</span>`:""}
     </div>
     <div class="tiny mt12" style="line-height:1.6"><b style="color:var(--muted)">${BODY_VIEW==="back"?"Back view shows rear delts, triceps and lats":BODY_VIEW==="front"?"Front view shows front delts, biceps and quads":"Side view: arm chain outlined in white, body muted behind it"}</b> — the same limb is a different muscle from front and back, so the colours differ between views.</div>
-    <div class="tiny mt8" style="line-height:1.6">Colour is judged against <b style="color:var(--muted)">each muscle's own weekly target</b> — 10 sets is plenty for calves and light for quads. Sets are counted <b style="color:var(--muted)">fractionally</b>: a lift that directly trains a muscle scores 1, one that merely assists scores 0.5. A white outline marks a muscle you set a <b style="color:var(--volt)">PB</b> in this week.</div>
+    <div class="tiny mt8" style="line-height:1.6">Sets are weighted by <b style="color:var(--muted)">how hard they were</b>: RPE 6 or under counts 0.5, 7 counts 0.75, 8–9 a full set, 9.5+ counts 1.15, and any set that beats your previous best counts 1.25×. Unrated sets count as one. Colour is judged against <b style="color:var(--muted)">each muscle's own weekly target</b> — 10 sets is plenty for calves and light for quads. Sets also count <b style="color:var(--muted)">fractionally</b>: a lift that directly trains a muscle scores 1, one that merely assists scores 0.5. A white outline marks a muscle you set a <b style="color:var(--volt)">PB</b> in this week.</div>
     <div class="sec-title mt16" style="font-size:9.5px">What fed each muscle</div>
     ${rows||`<div class="empty" style="padding:14px">No completed sets this week yet. Sets only count once you tap the ✓ next to them.</div>`}`;
 }
