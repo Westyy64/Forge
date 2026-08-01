@@ -366,7 +366,7 @@ a{color:var(--sky);text-decoration:none}
     <div class="eyebrow">Analytics</div>
     <div class="h-display">PROOF OF<br><em>WORK</em></div>
     <div class="mt16">
-      <div class="sec-title">Muscle map · this week</div>
+      <div class="sec-title" id="map-title">Muscle map · this week</div>
       <div class="card" id="bodymap"></div>
     </div>
     <div class="mt16">
@@ -1401,16 +1401,22 @@ function toggleSound(){DB.prefs.sound=!DB.prefs.sound;save();renderMore()}
 function download(name,content,type){const blob=new Blob([content],{type});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();URL.revokeObjectURL(url)}
 function backupJSON(){download(`forge-backup-${today()}.json`,JSON.stringify(DB,null,1),"application/json");toast("Backup downloaded — keep it safe")}
 function exportCSV(){
-  let csv="Date,Day,Exercise,Set,Weight(kg),Reps,Done\n";
-  DAY_ORDER.forEach(dayId=>{sessDates(dayId).forEach(date=>{const s=getSess(dayId,date);DAYS[dayId].exercises.forEach(ex=>{const sets=s[ex.id];if(!sets)return;sets.forEach((x,i)=>{if(!x||(!x.w&&!x.r))return;csv+=`${date},${DAYS[dayId].label},${esc(ex.name)},${i+1},${x.w||""},${x.r||""},${x.done?"Yes":"No"}\n`})})})});
+  let csv="Date,Day,Exercise,Set,Weight(kg),Reps,RPE,Done\n";
+  DAY_ORDER.forEach(dayId=>{sessDates(dayId).forEach(date=>{const s=getSess(dayId,date);DAYS[dayId].exercises.forEach(ex=>{const sets=s[ex.id];if(!sets)return;sets.forEach((x,i)=>{if(!x||(!x.w&&!x.r))return;csv+=`${date},${DAYS[dayId].label},${ex.name},${i+1},${x.w||""},${x.r||""},${x.rpe||""},${x.done?"Yes":"No"}\n`})})})});
   csv+="\nDate,Weight(kg)\n";DB.weight.forEach(e=>csv+=`${e.date},${e.kg}\n`);
   csv+="\nDate,Steps\n";Object.entries(DB.steps).forEach(([d,s])=>csv+=`${d},${s}\n`);
-  csv+="\nDate,Calories,Protein(g)\n";Object.entries(DB.macros).forEach(([d,m])=>csv+=`${d},${m.kcal},${m.prot}\n`);
+  csv+="\nDate,Calories,Protein(g),Carbs(g),Fat(g)\n";Object.keys(DB.macros).sort().forEach(d=>{const t=macTot(d);csv+=`${d},${Math.round(t.cal)},${Math.round(t.pro)},${Math.round(t.carb)},${Math.round(t.fat)}\n`});
+  if((DB.foods||[]).length){
+    csv+="\nMy Foods,Calories,Protein(g),Carbs(g),Fat(g)\n";
+    DB.foods.forEach(f=>csv+=`"${String(f.label).replace(/"/g,'""')}",${f.cal||0},${f.pro||0},${f.carb||0},${f.fat||0}\n`);
+  }
   download(`forge-export-${today()}.csv`,csv,"text/csv");toast("CSV exported");
 }
 
 /* ---------- IMPORT: .json backup or .csv export, merge or replace ---------- */
-function normName(s){return String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"")}
+function unesc(s){return String(s||"").replace(/&#39;|&apos;/g,"'").replace(/&quot;/g,'"')
+  .replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&")}
+function normName(s){return unesc(s).toLowerCase().replace(/[^a-z0-9]/g,"")}
 const EX_MAP=(()=>{  // rebuilt by rebuildMaps() when the program changes
   const m={};DAY_ORDER.forEach(d=>{m[d]={};DAYS[d].exercises.forEach(e=>m[d][normName(e.name)]=e.id)});return m})();
 const DAY_MAP=(()=>{const m={};DAY_ORDER.forEach((d,i)=>{m[normName(DAYS[d].label)]=d;m[normName(DAYS[d].short)]=d;m["day"+(i+1)]=d});return m})();
@@ -1419,22 +1425,26 @@ function csvRow(l){const o=[];let c="",q=false;for(let i=0;i<l.length;i++){const
  o.push(c.trim());return o}
 const isDate=d=>/^\d{4}-\d{2}-\d{2}$/.test(d);
 function parseCSV(text){
-  const out={sessions:{},weight:[],steps:{},macros:{}};let mode=0,skipped=0;
+  const out={sessions:{},weight:[],steps:{},macros:{},foods:[]};let mode=0,skipped=0;
   text.split(/\r?\n/).forEach(line=>{
     if(!line.trim())return;
     const r=csvRow(line);
     if(normName(r[0])==="date"){const h=normName(r[1]);
       mode=h.indexOf("day")===0?1:h.indexOf("weight")===0?2:h.indexOf("step")===0?3:h.indexOf("calor")===0?4:0;return}
-    if(!isDate(r[0])){return}
+    if(normName(r[0])==="myfoods"){mode=5;return}
+    if(mode===5){if(r[0]&&r[0].toLowerCase()!=="my foods")out.foods.push({id:"f"+Date.now()+Math.random().toString(36).slice(2,6),label:unesc(r[0]),cal:+r[1]||0,pro:+r[2]||0,carb:+r[3]||0,fat:+r[4]||0});return}
+    if(mode!==5&&!isDate(r[0])){return}
     if(mode===1){
       const dayId=DAY_MAP[normName(r[1])];
       const exId=dayId?EX_MAP[dayId][normName(r[2])]:null;
       if(!dayId||!exId){skipped++;return}
       const i=(parseInt(r[3],10)||1)-1;
+      const hasRPE=r.length>7;                       // newer exports carry RPE
       const s=(out.sessions[dayId]=out.sessions[dayId]||{})[r[0]]=out.sessions[dayId][r[0]]||{};
       const arr=s[exId]=s[exId]||[];
       while(arr.length<=i)arr.push({});
-      arr[i]={w:+r[4]||0,r:+r[5]||0,done:normName(r[6])!=="no"};
+      arr[i]={w:+r[4]||0,r:+r[5]||0,done:normName(hasRPE?r[7]:r[6])!=="no"};
+      if(hasRPE&&+r[6])arr[i].rpe=+r[6];
     }
     else if(mode===2){const kg=+r[1];if(kg)out.weight.push({date:r[0],kg})}
     else if(mode===3){const n=+r[1];if(n)out.steps[r[0]]=n}
@@ -1467,8 +1477,9 @@ function importFile(inp){
     try{
       if(/\.csv$/i.test(f.name)||!/^\s*[\{\[]/.test(r.result)){data=parseCSV(r.result);kind="CSV"}
       else{const j=JSON.parse(r.result);
-        if(!j.sessions&&!j.weight)throw 0;
-        data={sessions:j.sessions||{},weight:j.weight||[],steps:j.steps||{},macros:j.macros||{},prs:j.prs||[],prefs:j.prefs};kind="backup"}
+        if(!j.sessions&&!j.weight&&!j.foods)throw 0;
+        data={sessions:j.sessions||{},weight:j.weight||[],steps:j.steps||{},macros:j.macros||{},
+              prs:j.prs||[],prefs:j.prefs,foods:j.foods,targets:j.targets,measure:j.measure};kind="backup"}
     }catch(e){toast("That file isn't a Forge backup or CSV export");return}
     let sess=0,ex=0;
     Object.keys(data.sessions).forEach(d=>Object.keys(data.sessions[d]).forEach(dt=>{sess++;ex+=Object.keys(data.sessions[d][dt]).filter(k=>!k.startsWith("_")).length}));
@@ -1507,6 +1518,13 @@ function doImport(replace){
   DB.weight.sort((a,b)=>a.date<b.date?-1:1);
   Object.keys(d.steps).forEach(k=>{if(replace||DB.steps[k]==null)DB.steps[k]=d.steps[k]});
   Object.keys(d.macros||{}).forEach(k=>{if(replace||DB.macros[k]==null)DB.macros[k]=d.macros[k]});
+  // foods, goals and measurements travel with a backup too
+  if(d.foods&&d.foods.length){
+    DB.foods=DB.foods||[];
+    d.foods.forEach(f=>{if(!DB.foods.some(x=>x.id===f.id||x.label===f.label))DB.foods.push(f)});
+  }
+  if(d.targets)DB.targets=Object.assign(replace?{}:(DB.targets||{}),d.targets);
+  if(d.measure)Object.keys(d.measure).forEach(k=>{if(replace||!(DB.measure||{})[k]){DB.measure=DB.measure||{};DB.measure[k]=d.measure[k]}});
   rebuildPRs();
   DB._seeded=true;save();
   PENDING=null;closeSheet();
@@ -1576,26 +1594,7 @@ async function triggerInstall(){
 DB.prefs=Object.assign({age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,
   autoCarb:0,autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60},DB.prefs);
 
-const SEED_FOODS=[
-{label:"High-Protein Burrito (1)",cal:302,pro:29.6,carb:19,fat:9.6},
-{label:"Lean Beef Pasta Bake (1 serve)",cal:490,pro:55,carb:0,fat:0},
-{label:"Chicken Pasta Crockpot (1 serve)",cal:440,pro:43,carb:0,fat:0},
-{label:"Musashi P45 Protein Bar",cal:350,pro:45,carb:3,fat:14},
-{label:"Musashi Whey Shake (skim milk)",cal:275,pro:38,carb:9,fat:3},
-{label:"Pauls Plus Protein Pouch 150g",cal:92,pro:15,carb:8,fat:0.3},
-{label:"Rokeby Protein Smoothie 425ml",cal:286,pro:30.2,carb:27.2,fat:6.4},
-{label:"Woolworths Light Tasty Cheese & Crackers",cal:183,pro:12,carb:12,fat:9.7},
-{label:"Milo Pro (skim milk)",cal:180,pro:15,carb:25,fat:2},
-{label:"Coffee, skim milk + 1 sugar",cal:45,pro:3.5,carb:7,fat:0},
-{label:"Quest Protein Cookie",cal:250,pro:15,carb:22,fat:18},
-{label:"Woolworths Caesar Salad Kit",cal:180,pro:4,carb:8,fat:15},
-{label:"4 Scrambled Eggs",cal:280,pro:24,carb:2,fat:20},
-{label:"2 Slices Wholegrain Toast",cal:160,pro:6,carb:30,fat:2},
-{label:"Chobani No Fat Greek Yoghurt 170g",cal:100,pro:17,carb:7,fat:0},
-{label:"MMC Chicken & Leek Pasta Bake 370g",cal:621,pro:40.7,carb:54.8,fat:25.9},
-{label:"MMC Pesto Chicken Pasta 330g",cal:516,pro:41.9,carb:26.7,fat:25.4},
-{label:"MMC Asian Chicken Stir Fry 420g",cal:614,pro:55,carb:69.7,fat:11.3},
-{label:"MMC Lo-Cal Honey Soy Chicken & Rice 330g",cal:370,pro:23.8,carb:54.8,fat:5}];
+const SEED_FOODS=[];   // starts empty — your foods live in your browser, and in backups
 
 /* ---------- migrate old shapes, seed the food library ---------- */
 const PROG_VERSION=6;
@@ -1618,7 +1617,7 @@ function v2migrate(){
     autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,autoRest:false,goalWeight:85,kcalTarget:2200,
     proteinTarget:200,stepGoal:5000,sound:true},DB.prefs);
   DB.foods=DB.foods||[];
-  if(!DB.foods.length)DB.foods=SEED_FOODS.map((f,i)=>Object.assign({id:"f"+i},f));
+  if(!DB.foods.length&&SEED_FOODS.length)DB.foods=SEED_FOODS.map((f,i)=>Object.assign({id:"f"+i},f));
   DB.auto=DB.auto||{s:{},m:{}};
   Object.keys(DB.macros||{}).forEach(d=>{
     const m=DB.macros[d];
@@ -1807,11 +1806,48 @@ function weekSets(off){
   }));
   _wsCache={detail,coarse,src,csrc,rpe:rpeBag};_wsKey=key;return _wsCache;
 }
-function regionSets(detail){const w=weekSets();return detail?{sets:w.coarse,src:w.csrc,rpe:w.rpe}:w.coarse}
-function muscleRPE(r){const b=(weekSets().rpe||{})[r];return b&&b.n?Math.round(b.sum/b.n*10)/10:null}
-function musclePRs(r){const b=(weekSets().rpe||{})[r];return b?b.pr:0}
-function muscleRaw(r){const b=(weekSets().rpe||{})[r];return b?b.raw:0}
-function armSets(){const w=weekSets();return{sets:w.detail,src:w.src,rpe:w.rpe}}
+let MAP_RANGE="week";                 // "week" | "quarter"
+const QTR_WEEKS=13;
+/* Merge the last 13 Mon–Sun weeks into one set of totals. */
+let _qCache=null,_qKey="";
+function quarterSets(){
+  const key=today()+"|"+DB_REV;
+  if(_qCache&&_qKey===key)return _qCache;
+  const detail={},coarse={},src={},csrc={},rpe={};
+  const merge=(dst,srcObj)=>Object.keys(srcObj).forEach(k=>dst[k]=(dst[k]||0)+srcObj[k]);
+  const mergeSrc=(dst,srcObj)=>Object.keys(srcObj).forEach(k=>{
+    (dst[k]=dst[k]||[]);srcObj[k].forEach(v=>{
+      const name=v.split(" ×")[0],n=+((v.match(/×(\d+)/)||[])[1]||0);
+      const at=dst[k].findIndex(e=>e.split(" ×")[0]===name);
+      if(at<0)dst[k].push(name+" ×"+n);
+      else{const prev=+((dst[k][at].match(/×(\d+)/)||[])[1]||0);dst[k][at]=name+" ×"+(prev+n)}
+    })});
+  for(let i=0;i<QTR_WEEKS;i++){
+    const w=weekSets(-i);
+    merge(detail,w.detail);merge(coarse,w.coarse);
+    mergeSrc(src,w.src);mergeSrc(csrc,w.csrc);
+    Object.keys(w.rpe||{}).forEach(k=>{const b=(rpe[k]=rpe[k]||{sum:0,n:0,pr:0,raw:0});
+      b.sum+=w.rpe[k].sum;b.n+=w.rpe[k].n;b.pr+=w.rpe[k].pr;b.raw+=w.rpe[k].raw});
+  }
+  _qCache={detail,coarse,src,csrc,rpe};_qKey=key;return _qCache;
+}
+function mapData(){return MAP_RANGE==="quarter"?quarterSets():weekSets()}
+let _twKey="",_tw=1;
+function weeksTrained(){
+  const k=today()+"|"+DB_REV;
+  if(_twKey===k)return _tw;
+  let n=0;for(let i=0;i<QTR_WEEKS;i++){if(Object.keys(weekSets(-i).coarse).length)n++}
+  _twKey=k;return _tw=Math.max(1,n);
+}
+/* Quarter targets scale to the weeks you actually trained, so the colour still
+   answers "was my volume right per week" rather than punishing a short history. */
+function rangeMult(){return MAP_RANGE==="quarter"?weeksTrained():1}
+function setMapRange(r){MAP_RANGE=r;_wsKey="";renderBodyMap()}
+function regionSets(detail){const w=mapData();return detail?{sets:w.coarse,src:w.csrc,rpe:w.rpe}:w.coarse}
+function muscleRPE(r){const b=(mapData().rpe||{})[r];return b&&b.n?Math.round(b.sum/b.n*10)/10:null}
+function musclePRs(r){const b=(mapData().rpe||{})[r];return b?b.pr:0}
+function muscleRaw(r){const b=(mapData().rpe||{})[r];return b?b.raw:0}
+function armSets(){const w=mapData();return{sets:w.detail,src:w.src,rpe:w.rpe}}
 
 /* which muscles each view can actually show */
 function viewRegions(v){
@@ -1822,10 +1858,12 @@ function viewRegions(v){
    scale made a muscle inside its range look worse than one truly behind. */
 const SUB_PARENT={};
 function targetFor(r){
-  if(SET_TARGET[r])return SET_TARGET[r];
+  const m=rangeMult();
+  if(SET_TARGET[r])return m===1?SET_TARGET[r]:[SET_TARGET[r][0]*m,SET_TARGET[r][1]*m];
   if(!Object.keys(SUB_PARENT).length)
     Object.keys(COARSE_SUBS).forEach(c=>COARSE_SUBS[c].forEach(x=>SUB_PARENT[x]=c));
-  return SET_TARGET[SUB_PARENT[r]]||null;
+  const p=SET_TARGET[SUB_PARENT[r]];
+  return p?(m===1?p:[p[0]*m,p[1]*m]):null;
 }
 const HEAT=["#3b82f6","#22c55e","#f59e0b","#a855f7","#ef4444"];  // none·under·on target·at limit·over
 function heatColor(n,r){
@@ -1927,14 +1965,21 @@ function mapLabels(view,muted){
 }
 let BODY_VIEW="front";
 function setBodyView(v){BODY_VIEW=v;renderBodyMap()}
+function rangeTabs(){
+  const q=MAP_RANGE==="quarter";
+  return`<div class="seg" style="margin-bottom:10px">
+    <button class="${q?"":"active"}" onclick="setMapRange('week')">This week</button>
+    <button class="${q?"active":""}" onclick="setMapRange('quarter')">This quarter</button></div>`;
+}
 function renderBodyMap(){
   const el=$("bodymap");if(!el)return;
   if(BODY_VIEW!=="arms"&&!BODY[BODY_VIEW])BODY_VIEW="front";
   if(BODY_VIEW==="arms"){
-    el.innerHTML=`<div class="seg" style="margin-bottom:12px">${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>`
+    el.innerHTML=`${rangeTabs()}<div class="seg" style="margin-bottom:12px">${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}</div>`
       +renderArmMap();
     return;
   }
+  const mt=$("map-title");if(mt)mt.textContent=MAP_RANGE==="quarter"?"Muscle map · last "+weeksTrained()+" weeks trained":"Muscle map · this week";
   const det=regionSets(true),sets=det.sets,prm=prMusclesThisWeek();
   // on the side view only the arm/shoulder chain is coloured — torso stays neutral
   // side view = arm focus: the arm chain keeps full colour and gains a bright
@@ -1958,15 +2003,15 @@ function renderBodyMap(){
     return`<div class="hist-row" style="padding:8px 0;border-color:#1a1d26">
       <div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:500;color:${n?"var(--text)":"var(--dim)"}">${REGION_NAME[r]||r}${prm[r]?' <span class="tag tag-c">PB</span>':""}</div>
       <div class="tiny">${(()=>{const t=targetFor(r);const rp=muscleRPE(r),pr=musclePRs(r);
-        return (t?`${heatLabel(n,r)} · aim ${t[0]}–${t[1]}`:"")+(rp?` · avg RPE ${rp}`:"")+(pr?` · ${pr} PB${pr>1?"s":""}`:"")+" — ";})()}${n?esc((det.src[r]||[]).join(" · ")):"nothing this week"}</div></div>
+        return (t?`${heatLabel(n,r)} · aim ${t[0]}–${t[1]}`:"")+(rp?` · avg RPE ${rp}`:"")+(pr?` · ${pr} PB${pr>1?"s":""}`:"")+" — ";})()}${n?esc((det.src[r]||[]).join(" · ")):MAP_RANGE==="quarter"?"nothing this quarter":"nothing this week"}</div></div>
       <div class="hist-val" style="color:${heatColor(n,r)}">${n}</div></div>`;
   }).join("");
   const legend=[[HEAT[0],"not trained"],[HEAT[1],"under target"],[HEAT[2],"on target"],[HEAT[3],"at limit"],[HEAT[4],"over"]];
-  el.innerHTML=`<div class="seg" style="margin-bottom:12px">
+  el.innerHTML=`${rangeTabs()}<div class="seg" style="margin-bottom:12px">
       ${["front","back","side","arms"].map(v=>`<button class="${v===BODY_VIEW?"active":""}" onclick="setBodyView('${v}')">${v==="arms"?"Arms 🔍":v[0].toUpperCase()+v.slice(1)}</button>`).join("")}
     </div>
     <svg viewBox="-72 0 344 396" style="width:100%;max-height:420px;display:block" role="img" aria-label="Muscle heat map, ${BODY_VIEW} view">${BODY_VIEW==="side"?`<g transform="translate(200,0) scale(-1,1)">${svg}</g>`:svg}${mapLabels(BODY_VIEW)}</svg>
-    <div class="tiny mt12" style="text-align:center;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-family:var(--font-m);font-size:9px">Measured against weekly targets</div>
+    <div class="tiny mt12" style="text-align:center;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);font-family:var(--font-m);font-size:9px">Measured against ${MAP_RANGE==="quarter"?weeksTrained()+"-week":"weekly"} targets</div>
     <div class="row mt8" style="flex-wrap:wrap;gap:6px;justify-content:center">
       ${legend.map(l=>`<span class="pill" style="border-color:${l[0]};color:${l[0]}">${l[1]}</span>`).join("")}
       ${Object.keys(prm).length?`<span class="pill" style="border-color:#eef0f4;color:#eef0f4;border-width:2px">⬤ white ring = PB this week</span>`:""}
