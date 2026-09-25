@@ -233,7 +233,7 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .chart-kick{font-family:var(--font-m);font-size:9.5px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px}
 .chart-name{font-size:15px;font-weight:700;margin-bottom:12px}
 .select{width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:10px;color:var(--text);font-size:13.5px;padding:11px 12px;outline:none;margin-bottom:12px;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a90a0' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center}
-.kpi3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+.kpi3{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px;margin-bottom:12px}
 .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
 .kpi-l{font-family:var(--font-m);font-size:8.5px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
 .kpi-v{font-family:var(--font-m);font-size:16px;font-weight:700;margin-top:4px}
@@ -535,8 +535,10 @@ let DAYS={
     {id:"deadlift",name:"Barbell Deadlift",type:"compound",sets:4,reps:"4–6",muscle:"Legs",equip:"Rack + barbell (20 kg bar)"},
     {id:"hipthrust",name:"Smith Hip Thrust",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Smith machine + bench — go heavy"},
     {id:"lmtwist",name:"Landmine Twist",type:"isolation",sets:3,reps:"12 each",muscle:"Core",equip:"Landmine — rotate side to side, straight arms"},
+    {id:"curl4",name:"Cable Bicep Curl",type:"isolation",sets:3,reps:"12–15",muscle:"Arms",equip:"Cable straight bar — second bicep session of the week"},
+    {id:"pushdown",name:"Cable Tricep Pushdown",type:"isolation",sets:3,reps:"12–15",muscle:"Arms",equip:"Cable rope or bar — elbows pinned, push to full extension"},
+    {id:"lateral4",name:"Cable Lateral Raise (1 arm)",type:"isolation",sets:3,reps:"15–20",muscle:"Arms",equip:"Cable low, single D-handle — second shoulder session of the week"},
     {id:"calf4",name:"Smith Calf Raise",type:"isolation",sets:4,reps:"15–20",muscle:"Legs",equip:"Smith machine (15 kg bar)"},
-    {id:"hollow",name:"Hollow Body Hold",type:"finisher",sets:3,reps:"30 sec",muscle:"Core",equip:"Floor — brace, legs 45°, log seconds",timed:true},
   ]}
 };
 /* Each pair is adjacent in the list above, so the running order is simply
@@ -545,7 +547,7 @@ const SUPERSETS={
   day1:[["bench","facepull"],["incline","lateral"],["shoulder","chestfly"]],
   day2:[["squat","crunch"],["rdl","calf4"]],
   day3:[["bbrow","curl"],["shrug","wrist"]],
-  day4:[["hipthrust","lmtwist"],["calf4","hollow"]]
+  day4:[["deadlift","hipthrust"],["calf4","lmtwist"],["curl4","pushdown","lateral4"]]
 };
 const TIPS={
   bench:"Arch back, retract shoulder blades, tuck elbows slightly. Lower to chest, press up explosively.",
@@ -576,6 +578,9 @@ const TIPS={
   hipthrust:"Upper back on bench, bar on hips. Drive hips to full lockout, squeeze glutes hard.",
   calf4:"Balls of feet on a plate. Full stretch at the bottom, pause at the top.",
   lmtwist:"Face the plate, arms straight. Rotate side to side from the core, not the arms.",
+  curl4:"Same movement as Pull day but your biceps are fresh. Cable low, curl to the top, squeeze, lower slowly. No swinging.",
+  pushdown:"Cable high, rope or bar. Elbows pinned at your sides — they stay there. Push to full extension and squeeze at the bottom.",
+  lateral4:"Same as Push day. Cable low, D-handle, raise to shoulder height, control the return. Do all reps on one side then swap.",
   hollow:"Lower back glued to floor. Legs at 45°, arms overhead. Log the seconds."
 };
 /* The eight that define the goals: three barbell strength benchmarks,
@@ -664,12 +669,22 @@ function go(name){
   $("scr-"+name).scrollTop=0;
 }
 /* ---------- HOME ---------- */
+/* The week resets every Monday: whatever you missed last week stays missed.
+   Suggests the first day of the split you haven't trained THIS week, so a
+   skipped session never pushes the rotation into the following week. */
+function trainedThisWeek(dayId){
+  const wk=weekDates();
+  return wk.some(d=>{const s=getSess(dayId,d);
+    return s&&Object.keys(s).some(k=>!k.startsWith("_")&&(s[k]||[]).some(setDone))});
+}
 function suggestedDay(){
-  // next day in rotation after the most recently trained day
-  let lastDay=null,lastDate="";
-  DAY_ORDER.forEach(d=>{const ds=sessDates(d);if(ds.length&&ds[ds.length-1]>lastDate){lastDate=ds[ds.length-1];lastDay=d}});
-  if(!lastDay)return DAY_ORDER[0];
-  return DAY_ORDER[(DAY_ORDER.indexOf(lastDay)+1)%DAY_ORDER.length]||DAY_ORDER[0];
+  const todo=DAY_ORDER.filter(d=>!trainedThisWeek(d));
+  if(todo.length)return todo[0];            // first one still outstanding
+  return DAY_ORDER[0];                      // all four done — start again
+}
+function weekProgress(){
+  const done=DAY_ORDER.filter(trainedThisWeek);
+  return{done:done.length,total:DAY_ORDER.length,list:DAY_ORDER.map(d=>({id:d,done:trainedThisWeek(d)}))};
 }
 function openSuggested(){openWorkout(suggestedDay())}
 function dstr(x){return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`}
@@ -712,7 +727,8 @@ function renderHome(){
     return`<div class="wday${ds===today()?" today":""}" style="${future?"opacity:.4":""}"><div class="wday-lbl">${names[dt.getDay()]}</div><div class="wday-dot${trainedOn(ds)?" hit":""}"></div></div>`}).join("");
   // hero next
   const sug=suggestedDay(),day=DAYS[sug];const last=sessDates(sug);
-  $("hero-next").innerHTML=`<div class="hero-kicker">Up next</div><div class="hero-title">${day.short.split(" ")[0]} <em>${day.short.split(" ")[1]||""}</em></div><div class="subtle">${day.sub}</div><div class="row mt12" style="gap:7px"><span class="pill hi">${day.dur}</span><span class="pill">${day.exercises.length} exercises</span>${last.length?`<span class="pill">last: ${fmtDate(last[last.length-1])}</span>`:""}</div><button class="btn btn-volt btn-full mt16" onclick="event.stopPropagation();openWorkout('${sug}')">Start session →</button>`;
+  $("hero-next").innerHTML=`<div class="hero-kicker">Up next</div><div class="hero-title">${day.short.split(" ")[0]} <em>${day.short.split(" ")[1]||""}</em></div><div class="subtle">${day.sub}</div><div class="row mt12" style="gap:7px;flex-wrap:wrap"><span class="pill hi">${day.dur}</span><span class="pill">${day.exercises.length} exercises</span>${(()=>{const p=weekProgress();return`<span class="pill">${p.done}/${p.total} done this week</span>`})()}</div>
+    <div class="row mt12" style="gap:5px;flex-wrap:wrap">${weekProgress().list.map(x=>`<span class="pill" style="${x.done?"border-color:var(--pos);color:var(--pos)":""}">${x.done?"✓ ":""}${esc(DAYS[x.id].short)}</span>`).join("")}</div><button class="btn btn-volt btn-full mt16" onclick="event.stopPropagation();openWorkout('${sug}')">Start session →</button>`;
   // tiles
   const wl=DB.weight;
   if(wl.length){
@@ -832,8 +848,9 @@ function attachBigDrag(){
 function renderDayList(){
   $("day-list").innerHTML=DAY_ORDER.map(id=>{
     const d=DAYS[id],ds=sessDates(id);
+    const doneWk=trainedThisWeek(id);
     const lastTxt=ds.length?`Last trained ${daysAgo(ds[ds.length-1])===0?"today":daysAgo(ds[ds.length-1])+"d ago"} · ${ds.length} sessions`:"Never trained — fresh start";
-    return`<div class="day-card" onclick="openWorkout('${id}')"><div><div class="day-kicker">${esc(d.label)}</div><div class="day-name">${d.short}</div><div class="day-meta">${d.sub}</div><div class="day-last">${lastTxt}</div></div><div class="day-arrow">›</div></div>`;
+    return`<div class="day-card" onclick="openWorkout('${id}')" style="${doneWk?"border-color:#1e4a30":""}"><div><div class="day-kicker">${esc(d.label)}${doneWk?' <span style="color:var(--pos)">✓ done this week</span>':""}</div><div class="day-name">${d.short}</div><div class="day-meta">${d.sub}</div><div class="day-last">${lastTxt}</div></div><div class="day-arrow">›</div></div>`;
   }).join("");
 }
 
@@ -853,10 +870,10 @@ function openWorkout(dayId,date){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   $("tab-train").classList.add("active");
   $("scr-workout").scrollTop=0;
-  updateClockChip();
+  resumeClock();
 }
 function exitWorkout(){
-  stopClockUI();
+  clearInterval(WO.clockInt);WO.clockInt=null;
   if(WO.editing){rebuildPRs();save();WO.editing=false;go("history")}
   else go("train");
 }
@@ -977,7 +994,7 @@ function recommend(ex,hist){
   const rpe=lastRPE(ex.id);
   if(rpe&&rpe>=9.5&&!ex.timed)
     return{w:last.w,r:last.r,note:`Last time was RPE ${rpe} — repeat ${last.w} kg × ${last.r} before adding load`};
-  if(ex.timed){const next=Math.min(Math.round(last.r*1.1),ex.id==="hollow"?60:ex.id==="plank"?90:120);return{w:"",r:next,note:`Held ${last.r}s last time — aim ${next}s (+10%)`}}
+  if(ex.timed){const next=Math.min(Math.round(last.r*1.1),ex.id==="plank"?90:120);return{w:"",r:next,note:`Held ${last.r}s last time — aim ${next}s (+10%)`}}
   if(ex.carry)return{w:last.w?last.w+2.5:20,r:30,note:last.w?`Carried ${last.w} kg — try ${last.w+2.5} kg`:null};
   const range=ex.reps.match(/(\d+)\s*–\s*(\d+)/);
   const lo=range?+range[1]:+(ex.reps.match(/\d+/)||[8])[0], hi=range?+range[2]:lo;
@@ -1031,16 +1048,34 @@ function restSkip(){clearInterval(REST.int);$("rest-ov").classList.remove("open"
 
 /* ---------- SESSION CLOCK ---------- */
 function toggleClock(){
-  if(WO.clockStart){stopClockUI();const mins=Math.round((Date.now()-WO.clockStart)/60000);const sess=ensureSess(WO.dayId,WO.date);sess._dur=mins;save();toast(`Session: ${mins} min logged`)}
-  else{WO.clockStart=Date.now();WO.clockInt=setInterval(updateClockChip,1000);updateClockChip()}
+  const sess=ensureSess(WO.dayId,WO.date);
+  if(sess._start){                                   // running -> stop
+    const mins=Math.max(1,Math.round((Date.now()-sess._start)/60000));
+    sess._dur=(sess._dur||0)+mins;delete sess._start;save();
+    stopClockUI();toast(`Session: ${sess._dur} min logged`);
+  }else{                                             // stopped -> start
+    sess._start=Date.now();save();
+    WO.clockInt=setInterval(updateClockChip,1000);updateClockChip();
+  }
 }
 function updateClockChip(){
-  const c=$("wo-clock");
-  if(!WO.clockStart){c.textContent="⏱ Start";c.classList.remove("on");return}
-  const sec=Math.floor((Date.now()-WO.clockStart)/1000);
+  const c=$("wo-clock");if(!c)return;
+  const sess=getSess(WO.dayId,WO.date)||{};
+  if(!sess._start){
+    c.textContent=sess._dur?`⏱ ${sess._dur} min`:"⏱ Start";
+    c.classList.toggle("on",!!sess._dur);return;
+  }
+  const sec=Math.floor((Date.now()-sess._start)/1000)+((sess._dur||0)*60);
   c.textContent=`⏱ ${Math.floor(sec/60)}:${String(sec%60).padStart(2,"0")}`;c.classList.add("on");
 }
-function stopClockUI(){clearInterval(WO.clockInt);WO.clockStart=null;updateClockChip()}
+function stopClockUI(){clearInterval(WO.clockInt);WO.clockInt=null;updateClockChip()}
+/* resume a running clock when you come back to the screen or unlock the phone */
+function resumeClock(){
+  clearInterval(WO.clockInt);WO.clockInt=null;
+  const sess=getSess(WO.dayId,WO.date)||{};
+  if(sess._start)WO.clockInt=setInterval(updateClockChip,1000);
+  updateClockChip();
+}
 function finishWorkout(){
   const sess=getSess(WO.dayId,WO.date)||{};
   let sets=0,ton=0;
@@ -1050,11 +1085,12 @@ function finishWorkout(){
   let retired=0;
   Object.keys(sess).forEach(k=>{if(k.startsWith("_")||findEx(k))return;
     (sess[k]||[]).forEach(x=>{if(setDone(x))retired++})});
-  if(WO.clockStart)toggleClock();
+  if((getSess(WO.dayId,WO.date)||{})._start)toggleClock();
   openSheet(`<div class="sheet-title">Session complete 💪</div>
     <div class="kpi3"><div class="kpi"><div class="kpi-l">Sets done</div><div class="kpi-v">${sets}</div></div>
     <div class="kpi"><div class="kpi-l">Tonnage</div><div class="kpi-v">${Math.round(ton).toLocaleString()}<small> kg</small></div></div>
-    <div class="kpi"><div class="kpi-l">Avg RPE</div><div class="kpi-v">${sessionRPE(WO.dayId,WO.date)||"—"}</div></div></div>
+    <div class="kpi"><div class="kpi-l">Avg RPE</div><div class="kpi-v">${sessionRPE(WO.dayId,WO.date)||"—"}</div></div>
+    <div class="kpi"><div class="kpi-l">Duration</div><div class="kpi-v">${sess._dur||"—"}<small>${sess._dur?" min":""}</small></div></div></div>
     ${retired?`<div class="tiny mb12" style="color:var(--sky)">Plus ${retired} sets logged against exercises no longer in your program — still saved, visible in Session history.</div>`:""}
     <div class="subtle mb12">Every set is saved. Next session, the app will tell you exactly what to beat.</div>
     <button class="btn btn-volt btn-full" onclick="closeSheet();go('home')">Done</button>`);
@@ -1701,6 +1737,9 @@ lowback:"Lower back",glute:"Glutes",quad:"Quads",ham:"Hamstrings",calf:"Calves"}
    set counting. Without it, five exercises that merely involve the traps
    made them look harder-trained than four dedicated shrug sets.          */
 const EX_MUSCLES={
+pushdown:{p:["tri_lat","tri_med"],s:["tri_long"]},
+curl4:{p:["bi_short","bi_long","brach"],s:[]},
+lateral4:{p:["delt_side"],s:["trap_up"]},
 bench:{p:["chest"],s:["delt_front","tri_lat","tri_med"]},
 incline:{p:["chest"],s:["delt_front","tri_lat","tri_med"]},
 shoulder:{p:["delt_front","delt_side"],s:["tri_long","tri_lat"]},
@@ -3061,6 +3100,9 @@ function viewBody(){
 
 /* ══════════ TARGET WEIGHTS — what "done" looks like on every lift ══════════ */
 const DEFAULT_TARGETS={
+pushdown:{w:30,r:12},
+curl4:{w:20,r:12},
+lateral4:{w:10,r:15},
 bench:{w:90,r:8},incline:{w:60,r:8},shoulder:{w:45,r:8},facepull:{w:50,r:15},
 ohtri:{w:50,r:12},lateral:{w:24,r:15},chestfly:{w:36,r:12},
 squat:{w:125,r:8},zercher:{w:85,r:8},rdl:{w:100,r:10},farmers:{w:100,r:30},
@@ -3174,6 +3216,10 @@ function renderTargets(){
     ${rows.join("")}
     <div class="tiny mt12">Tap any lift to change its target. Figures are your best weight at the goal's rep count, so extra reps count as well as extra weight.</div></div>`;
 }
+
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden&&CUR==="workout"&&WO.dayId)resumeClock();
+});
 
 /* ---------- INIT ---------- */
 /* If anything throws while starting up, show what happened and offer recovery
