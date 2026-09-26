@@ -103,6 +103,17 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 .tile-sub{font-size:10.5px;margin-top:6px;color:var(--dim)}
 .tile-sub.pos{color:var(--pos)}.tile-sub.neg{color:var(--neg)}.tile-sub.volt{color:var(--volt)}
 
+/* Strength Progress — workout-driven motivation tracker */
+.operator-card{background:linear-gradient(135deg,var(--panel2),var(--panel));border:1px solid var(--line2);border-radius:var(--r);padding:16px;position:relative;overflow:hidden}
+.operator-card::after{content:"";position:absolute;width:130px;height:130px;right:-46px;top:-50px;border-radius:50%;background:radial-gradient(circle,var(--volt-dim),transparent 70%);pointer-events:none}
+.operator-pct{font-family:var(--font-m);font-size:32px;font-weight:700;line-height:1;letter-spacing:-.03em}
+.operator-label{font-size:13px;font-weight:700;margin-top:7px}
+.operator-bar{height:9px;background:var(--panel3);border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:12px}
+.operator-fill{height:100%;background:linear-gradient(90deg,var(--sky),var(--volt),var(--pos));border-radius:9px;transition:width .5s ease}
+.operator-meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:9px;font-family:var(--font-m);font-size:9.5px;color:var(--muted)}
+.operator-quote{margin-top:14px;padding:12px 13px;border-left:3px solid var(--volt);background:#10130f;border-radius:0 9px 9px 0;font-size:13px;font-weight:650;line-height:1.5;letter-spacing:.01em;color:var(--text)}
+.operator-quote small{display:block;margin-top:5px;font-family:var(--font-m);font-size:9px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+
 /* Big Four barbell gauges — signature element */
 .bb-gauge{margin-bottom:14px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;
   touch-action:pan-y;position:relative}
@@ -304,6 +315,7 @@ a{color:var(--sky);text-decoration:none}
         <div class="tile-sub" id="t-streak-sub">weeks with 3+ sessions</div>
       </div>
     </div>
+    <div class="mt16" id="operator-home"></div>
     <div class="mt24">
       <div class="sec-title">The Big Four</div>
       <div class="card" id="bigfour"></div>
@@ -368,6 +380,10 @@ a{color:var(--sky);text-decoration:none}
     <div class="mt16">
       <div class="sec-title" id="map-title">Muscle map · this week</div>
       <div class="card" id="bodymap"></div>
+    </div>
+    <div class="mt16">
+      <div class="sec-title">Strength Progress</div>
+      <div id="operator-progress"></div>
     </div>
     <div class="mt16">
       <div class="sec-title">This week's review</div>
@@ -650,6 +666,103 @@ function bestSet(dayId,date,exId){const s=getSess(dayId,date);if(!s||!s[exId])re
 function exHistory(exId){// [{date,w,r,e1rm}] across all days
   const out=[];DAY_ORDER.forEach(dayId=>{if(!DAYS[dayId].exercises.some(e=>e.id===exId))return;sessDates(dayId).forEach(date=>{const b=bestSet(dayId,date,exId);if(b)out.push({date,w:b.w,r:b.r,e:e1rm(b.w,b.r)})})});return out.sort((a,b)=>a.date<b.date?-1:1)}
 
+/* ---------- OPERATOR PROGRESSION ----------
+   Completed workouts advance the score on a deliberately slow, long-term curve.
+   The score never moves backward and is capped at 95%. */
+const OPERATOR_CURVE=[
+  {s:0,p:15},{s:52,p:35},{s:104,p:55},{s:208,p:70},
+  {s:312,p:82},{s:416,p:90},{s:624,p:95}
+];
+const OPERATOR_LABELS=[
+  {p:15,l:"Foundation built"},{p:25,l:"Looking trained"},{p:35,l:"People are noticing"},
+  {p:50,l:"Clearly muscular"},{p:70,l:"Built for the load"},{p:82,l:"Strong and dependable"},
+  {p:90,l:"Nearly there"},{p:95,l:"Mission accomplished"}
+];
+const OPERATOR_LINES=[
+  "Strength protects the weak. Strong shoulders carry the load.",
+  "Build strength that makes you useful when the load gets heavy.",
+  "Discipline first. Strength follows.",
+  "Carry your share. Train to carry more when it matters.",
+  "Broad shoulders mean more when they are built for responsibility.",
+  "Strong shoulders carry more than weight.",
+  "Strong enough to help. Disciplined enough to stay ready.",
+  "Train until hard work looks ordinary.",
+  "Capability speaks quietly. Preparation speaks for itself.",
+  "Be hard to shake and easy to depend on.",
+  "Strength is responsibility with muscle behind it.",
+  "Stay useful under pressure. Stay steady under load.",
+  "The frame is built in private. The standard shows in public.",
+  "Prepare beyond what the easy day requires.",
+  "The body follows the standard you refuse to lower.",
+  "Being honourable is having every excuse to fall, yet you stand."
+];
+function operatorCalendarDay(){
+  const d=new Date(today()+"T12:00:00");
+  const epoch=new Date("2020-01-01T12:00:00");
+  return Math.floor((d-epoch)/86400000);
+}
+function operatorLine(){
+  const idx=((operatorCalendarDay()%OPERATOR_LINES.length)+OPERATOR_LINES.length)%OPERATOR_LINES.length;
+  return OPERATOR_LINES[idx];
+}
+function ensureOperatorTracker(){
+  if(DB.operatorTracker&&Number.isFinite(+DB.operatorTracker.workouts))return;
+  DB.operatorTracker={startDate:today(),startPct:15,workouts:0};save();
+}
+function operatorPctForSessions(n){
+  n=Math.max(0,+n||0);
+  for(let i=1;i<OPERATOR_CURVE.length;i++){
+    const a=OPERATOR_CURVE[i-1],b=OPERATOR_CURVE[i];
+    if(n<=b.s){const t=(n-a.s)/(b.s-a.s);return +(a.p+t*(b.p-a.p)).toFixed(2)}
+  }
+  return 95;
+}
+function operatorSessionsForPct(p){
+  p=Math.max(15,Math.min(95,+p||15));
+  for(let i=1;i<OPERATOR_CURVE.length;i++){
+    const a=OPERATOR_CURVE[i-1],b=OPERATOR_CURVE[i];
+    if(p<=b.p){const t=(p-a.p)/(b.p-a.p);return Math.ceil(a.s+t*(b.s-a.s))}
+  }
+  return OPERATOR_CURVE[OPERATOR_CURVE.length-1].s;
+}
+function operatorState(){
+  ensureOperatorTracker();
+  const n=Math.max(0,+DB.operatorTracker.workouts||0),pct=operatorPctForSessions(n);
+  let cur=OPERATOR_LABELS[0],next=null;
+  OPERATOR_LABELS.forEach(m=>{if(pct>=m.p)cur=m;else if(!next)next=m});
+  const nextSessions=next?operatorSessionsForPct(next.p):null;
+  return{n,pct,label:cur.l,next,nextSessions,left:nextSessions==null?0:Math.max(0,nextSessions-n)};
+}
+function awardOperatorWorkout(sess,sets){
+  ensureOperatorTracker();
+  if(!sets||sess._operatorAwarded)return null;
+  const before=operatorState().pct;
+  sess._operatorAwarded=true;DB.operatorTracker.workouts=(+DB.operatorTracker.workouts||0)+1;save();
+  const st=operatorState();
+  return{before,after:st.pct,delta:+(st.pct-before).toFixed(2),label:st.label};
+}
+function renderOperatorHome(){
+  const el=$("operator-home");if(!el)return;const st=operatorState();
+  el.innerHTML=`<div class="operator-card" onclick="go('progress')">
+    <div class="spread" style="align-items:flex-end;position:relative;z-index:1"><div><div class="chart-kick">Strength Progress</div><div class="operator-pct">${st.pct.toFixed(1)}%</div></div><span class="pill hi">${st.n} workouts</span></div>
+    <div class="operator-label" style="position:relative;z-index:1">${esc(st.label)}</div>
+    <div class="operator-bar"><div class="operator-fill" style="width:${st.pct}%"></div></div>
+    <div class="operator-meta"><span>${st.next?`${st.left} workouts to “${esc(st.next.l)}”`:`95% cap reached`}</span><span>tap for detail →</span></div>
+    <div class="operator-quote">“${esc(operatorLine(st.pct))}”<small>Daily standard · changes every day</small></div>
+  </div>`;
+}
+function renderOperatorProgress(){
+  const el=$("operator-progress");if(!el)return;const st=operatorState();
+  const marks=OPERATOR_LABELS.map(m=>{const hit=st.pct>=m.p;return`<div class="hist-row" style="padding:9px 0;border-color:#1a1d26;opacity:${hit?1:.62}"><div><div style="font-size:12.5px;font-weight:600">${hit?"✓ ":""}${esc(m.l)}</div><div class="tiny">${m.p}% · about ${operatorSessionsForPct(m.p)} completed workouts from your 15% start</div></div><div class="hist-val" style="color:${hit?"var(--pos)":"var(--muted)"}">${m.p}%</div></div>`}).join("");
+  el.innerHTML=`<div class="operator-card">
+    <div class="spread" style="align-items:flex-end;position:relative;z-index:1"><div><div class="chart-kick">Strength Progress</div><div class="operator-pct">${st.pct.toFixed(1)}%</div><div class="operator-label">${esc(st.label)}</div></div><div class="mono" style="font-size:11px;color:var(--muted);text-align:right">${st.n}<br><span class="tiny">completed workouts</span></div></div>
+    <div class="operator-bar"><div class="operator-fill" style="width:${st.pct}%"></div></div>
+    <div class="operator-quote">“${esc(operatorLine(st.pct))}”<small>Daily standard · changes every day</small></div>
+    ${st.next?`<div class="warm-card mt12" style="margin-left:0;margin-right:0"><div class="warm-title">Next milestone</div><div class="warm-desc"><b style="color:var(--text)">${esc(st.next.l)}</b> at ${st.next.p}% · ${st.left} more completed workout${st.left===1?"":"s"}.</div></div>`:""}
+    <div class="mt16">${marks}</div>
+  </div>`;
+}
+
 /* ---------- NAVIGATION ---------- */
 let CUR="home";
 function go(name){
@@ -744,6 +857,7 @@ function renderHome(){
   }else{$("t-bw").innerHTML=`—<span class="unit">kg</span>`;$("t-togo").innerHTML=`—<span class="unit">kg</span>`}
   $("t-vol").innerHTML=`${tonnage7d().toLocaleString()}<span class="unit">kg</span>`;
   $("t-streak").innerHTML=`${weeklyStreak()}<span class="unit">wks</span>`;
+  renderOperatorHome();
   renderBigFour();
   homeAlert();
   // recent PRs
@@ -1086,12 +1200,14 @@ function finishWorkout(){
   Object.keys(sess).forEach(k=>{if(k.startsWith("_")||findEx(k))return;
     (sess[k]||[]).forEach(x=>{if(setDone(x))retired++})});
   if((getSess(WO.dayId,WO.date)||{})._start)toggleClock();
+  const operator=awardOperatorWorkout(sess,sets),operatorNow=operatorState();
   openSheet(`<div class="sheet-title">Session complete 💪</div>
     <div class="kpi3"><div class="kpi"><div class="kpi-l">Sets done</div><div class="kpi-v">${sets}</div></div>
     <div class="kpi"><div class="kpi-l">Tonnage</div><div class="kpi-v">${Math.round(ton).toLocaleString()}<small> kg</small></div></div>
     <div class="kpi"><div class="kpi-l">Avg RPE</div><div class="kpi-v">${sessionRPE(WO.dayId,WO.date)||"—"}</div></div>
     <div class="kpi"><div class="kpi-l">Duration</div><div class="kpi-v">${sess._dur||"—"}<small>${sess._dur?" min":""}</small></div></div></div>
     ${retired?`<div class="tiny mb12" style="color:var(--sky)">Plus ${retired} sets logged against exercises no longer in your program — still saved, visible in Session history.</div>`:""}
+    ${operator?`<div class="operator-card mb12" style="padding:13px"><div class="spread"><div><div class="chart-kick">Strength Progress</div><div style="font-size:15px;font-weight:700">${operatorNow.pct.toFixed(1)}% · ${esc(operatorNow.label)}</div></div><div class="mono" style="font-size:13px;color:var(--pos)">+${operator.delta.toFixed(2)}%</div></div><div class="operator-bar"><div class="operator-fill" style="width:${operatorNow.pct}%"></div></div></div>`:`<div class="tiny mb12">Strength Progress already counted for this session.</div>`}
     <div class="subtle mb12">Every set is saved. Next session, the app will tell you exactly what to beat.</div>
     <button class="btn btn-volt btn-full" onclick="closeSheet();go('home')">Done</button>`);
 }
@@ -1385,6 +1501,7 @@ function renderProgress(){
   }
   renderLiftChart();
   $("vol-by-muscle").innerHTML=tonnageTrend();
+  renderOperatorProgress();
   // PR list
   $("rev-week").innerHTML=renderReview();
   $("rev-balance").innerHTML=renderBalance();
@@ -2434,6 +2551,7 @@ function ssHelp(){
 /* ══════════ INIT v2 ══════════ */
 function initV2(){
   v2migrate();
+  ensureOperatorTracker();
   runAutoLog();
   rebuildMaps();
   // keep auto-logging current if the app is left open past midnight
