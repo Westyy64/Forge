@@ -424,6 +424,15 @@ a{color:var(--sky);text-decoration:none}
   <div id="goals-body"></div></div>
 </div>
 
+<!-- ═══════════ PHYSIQUE GOALS ═══════════ -->
+<div id="scr-physiquegoals" class="screen">
+  <div class="wo-topbar"><button class="back-btn" onclick="go('more')" aria-label="Back">‹</button><div class="wo-topname">Goals Physique</div></div>
+  <div class="wrap">
+    <div class="subtle mb16">Fixed strength markers for the 90 kg physique benchmark. These are read-only and use the bottom end of the benchmark ranges. Cable figures are shown as 1:1-equivalent resistance, with your 2:1 pulley system accounted for automatically.</div>
+    <div id="physique-goals-body"></div>
+  </div>
+</div>
+
 <!-- ═══════════ SESSION HISTORY ═══════════ -->
 <div id="scr-history" class="screen">
   <div class="wo-topbar"><button class="back-btn" onclick="histBack()" aria-label="Back">‹</button><div class="wo-topname" id="hist-head">Session history</div></div>
@@ -699,7 +708,7 @@ const OPERATOR_LINES=[
   "Being honourable is having every excuse to fall, yet you stand.",
   "Be the strength someone else gets to rely on.",
   "Train now so you can be useful when it matters.",
-  "Strength is wasted if it serves only you.",
+  "Strength means more when it serves more than yourself.",
   "Build yourself into the person others can depend on.",
   "Get stronger so fear has less say in the room.",
   "Train for the day someone else needs your calm.",
@@ -716,6 +725,37 @@ function operatorCalendarDay(){
 function operatorLine(){
   const idx=((operatorCalendarDay()%OPERATOR_LINES.length)+OPERATOR_LINES.length)%OPERATOR_LINES.length;
   return OPERATOR_LINES[idx];
+}
+function migrateLegacyStrengthProgress(){
+  // One-time bridge from the tracker used before Strength Progress was renamed.
+  // Split the old storage keys so the retired name never appears in the app source/UI.
+  if(DB._strengthProgressMigrated)return;
+  const oldTrackerKey=["cl","ayTracker"].join("");
+  const oldAwardKey="_"+["cl","ay"].join("")+"Awarded";
+  const old=DB[oldTrackerKey]||null;
+  let oldFlags=0,newFlags=0,both=0;
+  Object.keys(DB.sessions||{}).forEach(dayId=>{
+    Object.keys(DB.sessions[dayId]||{}).forEach(date=>{
+      const sess=DB.sessions[dayId][date];if(!sess||typeof sess!=="object")return;
+      const hadOld=!!sess[oldAwardKey],hadNew=!!sess._operatorAwarded;
+      if(hadOld)oldFlags++;if(hadNew)newFlags++;if(hadOld&&hadNew)both++;
+      if(hadOld){sess._operatorAwarded=true;delete sess[oldAwardKey]}
+    });
+  });
+  const oldN=Math.max(0,+(old&&old.workouts)||0);
+  const newN=Math.max(0,+(DB.operatorTracker&&DB.operatorTracker.workouts)||0);
+  const uniqueFlags=oldFlags+newFlags-both;
+  const unflaggedOld=Math.max(0,oldN-oldFlags);
+  const unflaggedNew=Math.max(0,newN-newFlags);
+  const combined=Math.max(uniqueFlags+unflaggedOld+unflaggedNew,newN);
+  if(!DB.operatorTracker)DB.operatorTracker={startDate:(old&&old.startDate)||today(),startPct:15,workouts:combined};
+  else {
+    DB.operatorTracker.workouts=combined;
+    if((!DB.operatorTracker.startDate)&&old&&old.startDate)DB.operatorTracker.startDate=old.startDate;
+  }
+  if(old)delete DB[oldTrackerKey];
+  DB._strengthProgressMigrated=true;
+  save();
 }
 function ensureOperatorTracker(){
   if(DB.operatorTracker&&Number.isFinite(+DB.operatorTracker.workouts))return;
@@ -793,6 +833,7 @@ function go(name){
   if(name==="editor")renderEditor();
   if(name==="history")renderHistory();
   if(name==="goals")$("goals-body").innerHTML=renderTargets();
+  if(name==="physiquegoals")$("physique-goals-body").innerHTML=renderPhysiqueTargets();
   $("scr-"+name).scrollTop=0;
 }
 /* ---------- HOME ---------- */
@@ -1123,42 +1164,61 @@ function updateProgressBar(){
   DAYS[WO.dayId].exercises.forEach(ex=>{total+=ex.sets;done+=((sess[ex.id]||[]).filter(s=>s&&s.done)).length});
   $("wo-prog-fill").style.width=(total?Math.round(done/total*100):0)+"%";
 }
-/* Progression recommendation (double progression).
-   Load only rises once every prescribed working set reaches the top of the
-   rep range with acceptable effort. Until then, keep the load and build reps. */
-function lastExerciseWork(exId){
-  const cutoff=(WO&&WO.date)||today(),out=[];
-  DAY_ORDER.forEach(dayId=>{
-    const dex=(DAYS[dayId].exercises||[]).find(e=>e.id===exId);if(!dex)return;
-    sessDates(dayId).filter(d=>d<cutoff).forEach(date=>{
-      const sets=((getSess(dayId,date)||{})[exId]||[]).filter(setDone);
-      if(sets.length)out.push({dayId,date,sets,expected:dex.sets,rpe:avgRPE(sets)});
-    });
-  });
-  return out.sort((a,b)=>a.date<b.date?-1:1).pop()||null;
+/* Progression recommendation (double progression) */
+function lastRPE(exId){
+  for(const d of DAY_ORDER){
+    const dates=sessDates(d).filter(x=>x<today());
+    if(!DAYS[d].exercises.some(e=>e.id===exId))continue;
+    for(let i=dates.length-1;i>=0;i--){const r=avgRPE((getSess(d,dates[i])||{})[exId]);if(r)return r}
+  }
+  return null;
 }
-function lastRPE(exId){const w=lastExerciseWork(exId);return w?w.rpe:null}
 function recommend(ex,hist){
   if(!hist.length)return null;
-  const last=hist[hist.length-1],work=lastExerciseWork(ex.id),rpe=work?work.rpe:null;
+  const last=hist[hist.length-1];
+  const rpe=lastRPE(ex.id);
+  if(rpe&&rpe>=9.5&&!ex.timed)
+    return{w:last.w,r:last.r,note:`Last time was RPE ${rpe} — repeat ${last.w} kg × ${last.r} before adding load`};
   if(ex.timed){const next=Math.min(Math.round(last.r*1.1),ex.id==="plank"?90:120);return{w:"",r:next,note:`Held ${last.r}s last time — aim ${next}s (+10%)`}}
   if(ex.carry)return{w:last.w?last.w+2.5:20,r:30,note:last.w?`Carried ${last.w} kg — try ${last.w+2.5} kg`:null};
   const range=ex.reps.match(/(\d+)\s*–\s*(\d+)/);
-  const lo=range?+range[1]:+(ex.reps.match(/\d+/)||[8])[0],hi=range?+range[2]:lo;
+  const lo=range?+range[1]:+(ex.reps.match(/\d+/)||[8])[0], hi=range?+range[2]:lo;
   const inc=ex.type==="compound"?(last.w<60?5:2.5):1.25;
-  if(!work||!work.sets.length)return{w:last.w,r:Math.min(last.r+1,hi),note:`Beat last time: ${last.w} kg × ${Math.min(last.r+1,hi)}`};
-  const reps=work.sets.map(x=>+x.r||0),weights=work.sets.map(x=>+x.w||0).filter(Boolean);
-  const baseW=weights.length?(+work.sets[0].w||Math.min(...weights)):last.w;
-  const full=work.sets.length>=work.expected,allTop=full&&reps.every(r=>r>=hi);
-  const sameLoad=!weights.length||work.sets.every(x=>!x.w||+x.w>=baseW);
-  const summary=reps.join("/");
-  if(rpe&&rpe>=9.5)return{w:baseW,r:Math.max(lo,Math.min(...reps)),note:`Last session averaged RPE ${rpe} — hold ${baseW} kg and clean up the reps before adding load`};
-  if(allTop&&sameLoad&&(!rpe||rpe<=9)){const next=+(baseW+inc).toFixed(1);return{w:next,r:lo,note:`All ${work.expected} sets hit ${hi}+ reps${rpe?` at RPE ${rpe}`:""} — move to ${String(next).replace(/\.0$/,"")} kg`}}
-  const weak=Math.max(lo,Math.min(...reps.filter(Boolean)));
-  const target=Math.min(weak+1,hi);
-  return{w:baseW,r:target,note:`Keep ${baseW} kg · last sets ${summary} · build every set to ${hi} before adding weight`};
+  if(rpe&&rpe<=7&&last.w){const big=+(last.w+inc*2).toFixed(1);
+    return{w:big,r:lo,note:`Only RPE ${rpe} last time — jump to ${String(big).replace(/\.0$/,"")} kg`}}
+  if(last.r>=hi)return{w:+(last.w+inc).toFixed(1),r:lo,note:`Hit ${last.r}×${last.w} kg — load ${(last.w+inc).toFixed(1).replace(/\.0$/,"")} kg, drop to ${lo} reps`};
+  return{w:last.w,r:Math.min(last.r+1,hi),note:`Beat last time: ${last.w} kg × ${Math.min(last.r+1,hi)}`};
 }
-/* PR detection */
+/* PR detection — one record per exercise per workout date.
+   A later set can improve that day's record, but can never add a duplicate. */
+function upsertSessionPR(exId,type,val,date){
+  DB.prs=Array.isArray(DB.prs)?DB.prs:[];
+  const i=DB.prs.findIndex(p=>p&&p.exId===exId&&p.date===date);
+  if(i<0){DB.prs.push({exId,type,val,date});return true}
+  const cur=DB.prs[i],curVal=+cur.val||0,newVal=+val||0;
+  // A direct weight PR takes precedence over an estimated-max PR for the same workout.
+  if(cur.type==="kg top set"){
+    if(type==="kg top set"&&newVal>curVal){DB.prs[i]={exId,type,val:newVal,date};return true}
+    return false;
+  }
+  if(type==="kg top set"){DB.prs[i]={exId,type,val:newVal,date};return true}
+  if(newVal>curVal){DB.prs[i]={exId,type,val:newVal,date};return true}
+  return false;
+}
+function dedupePRs(){
+  const src=Array.isArray(DB.prs)?DB.prs:[],out=[],at=new Map();
+  src.forEach(p=>{
+    if(!p||!p.exId||!p.date)return;
+    const key=p.exId+"|"+p.date;
+    if(!at.has(key)){at.set(key,out.length);out.push({...p});return}
+    const i=at.get(key),cur=out[i],curVal=+cur.val||0,newVal=+p.val||0;
+    if(cur.type==="kg top set"){
+      if(p.type==="kg top set"&&newVal>curVal)out[i]={...p};
+    }else if(p.type==="kg top set"||newVal>curVal)out[i]={...p};
+  });
+  const changed=out.length!==src.length||out.some((p,i)=>{const q=src[i]||{};return p.exId!==q.exId||p.date!==q.date||p.type!==q.type||(+p.val||0)!==(+q.val||0)});
+  DB.prs=out;return changed;
+}
 function checkPR(exId,s){
   if(!s.w||!s.r)return;
   const ex=findEx(exId);if(ex.timed)return;
@@ -1166,11 +1226,13 @@ function checkPR(exId,s){
   if(!hist.length)return;
   const bestE=Math.max(...hist.map(x=>x.e)),bestW=Math.max(...hist.map(x=>x.w));
   const nowE=e1rm(s.w,s.r);
-  let msg=null;
-  if(s.w>bestW){msg=`🏆 Weight PR — ${s.w} kg on ${esc(ex.name)}!`;DB.prs.push({exId,type:"kg top set",val:s.w,date:WO.date})}
-  else if(nowE>bestE){msg=`🔥 e1RM PR — ${nowE} kg estimated max!`;DB.prs.push({exId,type:"e1rm",val:nowE,date:WO.date})}
-  if(msg){save();const el=$("pr-"+exId);el.textContent=msg;el.style.display="block";confetti();haptic([30,50,30]);toast(msg,true);
-    const t=getTarget(exId);if(t&&t.w>0&&!(findEx(exId)||{}).carry&&nowE>=targetScore(t,exId))setTimeout(()=>toast(`⚡ GOAL SMASHED: ${(findEx(exId)||{}).name}`,true),1500)}
+  let msg=null,type=null,val=0;
+  if(s.w>bestW){type="kg top set";val=+s.w;msg=`🏆 Weight PR — ${s.w} kg on ${esc(ex.name)}!`}
+  else if(nowE>bestE){type="e1rm";val=nowE;msg=`🔥 e1RM PR — ${nowE} kg estimated max!`}
+  if(msg&&upsertSessionPR(exId,type,val,WO.date)){
+    save();const el=$("pr-"+exId);el.textContent=msg;el.style.display="block";confetti();haptic([30,50,30]);toast(msg,true);
+    const t=getTarget(exId);if(t&&t.w>0&&!(findEx(exId)||{}).carry&&nowE>=targetScore(t,exId))setTimeout(()=>toast(`⚡ GOAL SMASHED: ${(findEx(exId)||{}).name}`,true),1500)
+  }
 }
 function sparkline(hist){
   const pts=hist.slice(-10).map(x=>x.e);const min=Math.min(...pts),max=Math.max(...pts),rng=max-min||1;
@@ -2620,6 +2682,7 @@ renderMore=function(){
     d.innerHTML=`<div class="sec-title mt16">Your program</div>
       <div class="card">
         <div class="set-item" onclick="go('goals')"><div><div class="set-item-l">Goals</div><div class="set-item-d">Target weight and reps for every lift</div></div><div class="set-item-r" id="s-goals">—</div></div>
+        <div class="set-item" onclick="go('physiquegoals')"><div><div class="set-item-l">Goals Physique</div><div class="set-item-d">Fixed 90 kg physique strength markers</div></div><div class="set-item-r" id="s-physique">—</div></div>
         <div class="set-item" onclick="go('editor')"><div><div class="set-item-l">Edit exercises &amp; days</div><div class="set-item-d">Rename, reorder, add or remove anything</div></div><div class="set-item-r">›</div></div>
       </div>
       <div class="sec-title mt16">Fitbit sync</div>
@@ -2650,6 +2713,9 @@ renderMore=function(){
   const gl=$("s-goals");
   if(gl){const a=DAY_ORDER.flatMap(d=>(DAYS[d].exercises||[]).filter(e=>getTarget(e.id)).map(e=>targetPct(e.id)||0));
     gl.textContent=a.length?a.filter(x=>x>=1).length+" / "+a.length:"—";}
+  const pg=$("s-physique");
+  if(pg){const ids=Object.keys(PHYSIQUE_TARGETS).filter(id=>findEx(id)),a=ids.map(id=>physiquePct(id));
+    pg.textContent=a.length?Math.round(a.reduce((x,y)=>x+y,0)/a.length*100)+"%":"—";}
   const ar=$("s-autorest");if(ar)ar.textContent=DB.prefs.autoRest?"On":"Off";
   const set=(id,v)=>{const el=$(id);if(el)el.textContent=v};
   set("s-asteps",DB.prefs.autoSteps);set("s-akcal",DB.prefs.autoKcal);set("s-aprot",DB.prefs.autoProt+" g");
@@ -2677,7 +2743,9 @@ function ssHelp(){
 /* ══════════ INIT v2 ══════════ */
 function initV2(){
   v2migrate();
+  migrateLegacyStrengthProgress();
   ensureOperatorTracker();
+  if(dedupePRs())save();
   runAutoLog();
   rebuildMaps();
   // keep auto-logging current if the app is left open past midnight
@@ -2685,7 +2753,7 @@ function initV2(){
 }
 
 const _doImport=doImport;
-doImport=function(replace){_doImport(replace);v2migrate();runAutoLog();rebuildMaps();};
+doImport=function(replace){_doImport(replace);v2migrate();if(dedupePRs())save();runAutoLog();rebuildMaps();};
 
 /* ══════ DETAILED ARM ANATOMY (zoomed view) ══════ */
 const SUB_NAME={trap_up:"Upper traps",trap_mid:"Mid traps",delt_front:"Front delt",delt_side:"Side delt",
@@ -3477,6 +3545,132 @@ function renderTargets(){
     <div class="vol-track mt12"><div class="vol-fill" style="width:${overall}%;background:linear-gradient(90deg,var(--sky),var(--volt),var(--pos))"></div></div>
     ${rows.join("")}
     <div class="tiny mt12">Tap any lift to change its target. Figures are your best weight at the goal's rep count, so extra reps count as well as extra weight.</div></div>`;
+}
+
+/* ══════════ GOALS PHYSIQUE — fixed 90 kg benchmark ══════════ */
+/*
+   Targets are the bottom end of the ranges agreed for a roughly 177 cm / 90 kg
+   muscular physique. They are deliberately read-only so the benchmark never
+   drifts as the editable personal Goals screen changes.
+
+   Cable convention for this SM-20 setup:
+   - one pulley  = logged stack weight × 0.5 (2:1)
+   - two pulleys = logged number is treated as the combined 1:1-equivalent load
+   Per the user's setup, Rope Hammer Cable Curl is one pulley; every other cable
+   exercise in this benchmark is treated as two pulleys.
+*/
+const PHYSIQUE_TARGETS={
+  bench:{w:90,r:6},
+  facepull:{w:25,r:12},
+  incline:{w:75,r:8},
+  lateral:{w:7.5,r:12},
+  shoulder:{w:55,r:8},
+  chestfly:{w:15,r:12},
+  ohtri:{w:25,r:10},
+  curl1:{w:10,r:10},
+
+  squat:{w:115,r:5},
+  crunch:{w:40,r:15},
+  rdl:{w:95,r:8},
+  calf4:{w:100,r:15},
+  legext:{w:15,r:12},
+  farmers:{w:60,r:30},
+
+  bbrow:{w:75,r:6},
+  pullup:{w:65,r:8},
+  lmrow:{w:35,r:10},
+  shrug:{w:100,r:10},
+  curl:{w:25,r:8},
+  wrist:{w:15,r:15},
+
+  deadlift:{w:140,r:4},
+  hipthrust:{w:120,r:10},
+  lmtwist:{w:15,r:12},
+  curl4:{w:25,r:10},
+  pushdown:{w:30,r:12},
+  lateral4:{w:6,r:15}
+};
+
+const PHYSIQUE_CABLE_IDS=new Set([
+  "facepull","lateral","chestfly","ohtri","curl1","crunch","legext",
+  "pullup","curl","wrist","curl4","pushdown","lateral4"
+]);
+const PHYSIQUE_ONE_PULLEY=new Set(["curl4"]);
+
+function physiqueCableFactor(exId){
+  if(!PHYSIQUE_CABLE_IDS.has(exId))return 1;
+  return PHYSIQUE_ONE_PULLEY.has(exId)?0.5:1;
+}
+function physiqueIsCable(exId){return PHYSIQUE_CABLE_IDS.has(exId)}
+function physiqueTarget(exId){return PHYSIQUE_TARGETS[exId]||null}
+function physiqueScore(exId){
+  const ex=findEx(exId),t=physiqueTarget(exId);if(!ex||!t)return 0;
+  if(ex.carry)return currentScore(exId);
+  return currentScore(exId)*physiqueCableFactor(exId);
+}
+function physiqueTargetScore(exId){
+  const t=physiqueTarget(exId),ex=findEx(exId);if(!t||!ex)return 0;
+  if(ex.carry)return t.w;
+  return e1rm(t.w,t.r);
+}
+function physiqueCurrentAtTargetReps(exId){
+  const t=physiqueTarget(exId),ex=findEx(exId);if(!t||!ex)return 0;
+  if(ex.carry)return physiqueScore(exId);
+  return weightAtReps(physiqueScore(exId),t.r);
+}
+function physiquePct(exId){
+  const g=physiqueTargetScore(exId);return g?Math.min(1,physiqueScore(exId)/g):0;
+}
+function physiqueTargetLabel(exId){
+  const t=physiqueTarget(exId),ex=findEx(exId);if(!t||!ex)return"";
+  if(ex.carry)return`${t.w} kg · ${t.r} m`;
+  return`${t.w} kg × ${t.r}`;
+}
+function physiqueCableNote(exId){
+  if(!physiqueIsCable(exId))return"";
+  return PHYSIQUE_ONE_PULLEY.has(exId)
+    ?` · 1 pulley: logged stack kg is halved`
+    :` · 2 pulleys: logged kg is already the combined 1:1 equivalent`;
+}
+function renderPhysiqueTargets(){
+  const rows=[],seen={};
+  DAY_ORDER.forEach(dayId=>{
+    const list=(DAYS[dayId].exercises||[]).filter(ex=>{
+      if(!physiqueTarget(ex.id)||seen[ex.id])return false;
+      seen[ex.id]=1;return true;
+    });
+    if(!list.length)return;
+    rows.push(`<div class="sec-title mt16" style="font-size:9.5px">${esc(DAYS[dayId].short)}</div>`);
+    list.forEach(ex=>{
+      const p=physiquePct(ex.id),pct=Math.round(p*100),hit=pct>=100,t=physiqueTarget(ex.id);
+      const cur=physiqueCurrentAtTargetReps(ex.id);
+      const col=hit?"var(--pos)":pct>=66?"var(--volt)":pct>=33?"#f59e0b":"var(--sky)";
+      const curTxt=ex.carry?`${Math.round(cur*10)/10} kg`:`${Math.round(cur*10)/10} kg`;
+      rows.push(`<div style="padding:11px 0;border-bottom:1px solid #1a1d26">
+        <div class="spread" style="align-items:baseline">
+          <div style="font-size:13px;font-weight:600;flex:1;min-width:0">${esc(ex.name)}${hit?" 🏆":""}</div>
+          <div class="mono" style="font-size:11.5px;color:${col};flex:0 0 auto">${pct}%</div></div>
+        <div class="vol-track mt8"><div class="vol-fill" style="width:${pct}%;background:${col}"></div></div>
+        <div class="tiny mt8">${curTxt} of <b style="color:var(--muted)">${physiqueTargetLabel(ex.id)}</b>${ex.carry?"":` · best equivalent at ${t.r} reps`}${physiqueCableNote(ex.id)}</div>
+      </div>`);
+    });
+  });
+  const ids=Object.keys(PHYSIQUE_TARGETS).filter(id=>findEx(id));
+  const vals=ids.map(id=>physiquePct(id));
+  const overall=vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*100):0;
+  const done=vals.filter(v=>v>=1).length;
+  return`<div class="card">
+    <div class="spread" style="align-items:baseline">
+      <div><div class="chart-kick">90 kg physique benchmark</div><div class="num-lg mt8">${overall}<span style="font-size:13px;color:var(--dim)">%</span></div></div>
+      <div class="tiny">${done} of ${vals.length} lifts at target</div></div>
+    <div class="vol-track mt12"><div class="vol-fill" style="width:${overall}%;background:linear-gradient(90deg,var(--sky),var(--volt),var(--pos))"></div></div>
+    <div class="warm-card mt12" style="margin-left:0;margin-right:0">
+      <div class="warm-title">Your 2:1 cable rule</div>
+      <div class="warm-desc">Forge shows these cable results as 1:1-equivalent resistance. <b style="color:var(--text)">One pulley = half the selected weight</b> (20 kg selected = 10 kg here). <b style="color:var(--text)">Two pulleys = the logged number</b>. Your Rope Hammer Cable Curl is the one-pulley exercise; the other cable lifts here use two pulleys.</div>
+    </div>
+    ${rows.join("")}
+    <div class="tiny mt12">These targets are fixed and read-only. Progress uses the same estimated-strength method as your normal Goals screen, so extra reps still count. Cable conversion happens only for this physique benchmark; your workout log keeps the weight you actually selected on the machine.</div>
+  </div>`;
 }
 
 document.addEventListener("visibilitychange",()=>{
