@@ -351,7 +351,7 @@ a{color:var(--sky);text-decoration:none}
   <div class="warm-card" id="wo-editing" style="display:none;background:#2a1508;border-color:#4a2a10;border-left-color:var(--ember)"></div>
   <div class="warm-card">
     <div class="warm-title">Warm-up first</div>
-    <div class="warm-desc">5 min incline walk or bike, then ramp sets on the first lift — tap ⚡ Warm-up on it for exact loads.</div>
+    <div class="warm-desc">Complete the 10 min strider check below, then do ramp sets on the first lift — tap ⚡ Warm-up on it for exact loads.</div>
   </div>
   <div id="wo-body"></div>
   <div style="height:30px"></div>
@@ -443,9 +443,9 @@ a{color:var(--sky);text-decoration:none}
     <div class="eyebrow">Settings &amp; Data</div>
     <div class="h-display">UNDER THE<br><em>HOOD</em></div>
     <div class="card mt16">
-      <div class="set-item" onclick="editPref('goalWeight','Goal bodyweight (kg)')"><div><div class="set-item-l">Goal bodyweight</div><div class="set-item-d">The finish line</div></div><div class="set-item-r" id="s-goalw">85 kg</div></div>
-      <div class="set-item" onclick="editPref('kcalTarget','Daily calorie target (kcal)')"><div><div class="set-item-l">Calorie target</div><div class="set-item-d">Daily budget for the cut</div></div><div class="set-item-r" id="s-kcal">2200</div></div>
-      <div class="set-item" onclick="editPref('proteinTarget','Daily protein target (g)')"><div><div class="set-item-l">Protein target</div><div class="set-item-d">Keep muscle while cutting</div></div><div class="set-item-r" id="s-prot">200 g</div></div>
+      <div class="set-item" onclick="editPref('goalWeight','Goal bodyweight (kg)')"><div><div class="set-item-l">Goal bodyweight</div><div class="set-item-d">The finish line</div></div><div class="set-item-r" id="s-goalw">90 kg</div></div>
+      <div class="set-item" onclick="editPref('kcalTarget','Daily calorie target (kcal)')"><div><div class="set-item-l">Calorie target</div><div class="set-item-d">Daily budget for the cut</div></div><div class="set-item-r" id="s-kcal">1876</div></div>
+      <div class="set-item" onclick="editPref('proteinTarget','Daily protein target (g)')"><div><div class="set-item-l">Protein target</div><div class="set-item-d">Keep muscle while cutting</div></div><div class="set-item-r" id="s-prot">180 g</div></div>
       <div class="set-item" onclick="editPref('stepGoal','Daily step goal')"><div><div class="set-item-l">Step goal</div><div class="set-item-d">Daily movement floor</div></div><div class="set-item-r" id="s-steps">5000</div></div>
       <div class="set-item" onclick="toggleSound()"><div><div class="set-item-l">Timer sound</div><div class="set-item-d">Beep when rest ends</div></div><div class="set-item-r" id="s-sound">On</div></div>
     </div>
@@ -522,7 +522,7 @@ a{color:var(--sky);text-decoration:none}
 
 /* ---------- PROGRAM (from your existing plan) ---------- */
 let DAYS={
-  day1:{label:"Day 1 · Push",short:"PUSH",sub:"Chest · Shoulders · Triceps",dur:"~60 min",exercises:[
+  day1:{label:"Day 1 · Push",short:"PUSH",sub:"Chest · Shoulders · Arms",dur:"~75 min",exercises:[
     {id:"bench",name:"Barbell Bench Press",type:"compound",sets:4,reps:"6–8",muscle:"Chest",equip:"Rack + barbell (20 kg bar)"},
     {id:"facepull",name:"Cable Face Pulls",type:"isolation",sets:3,reps:"15",muscle:"Shoulders",equip:"Cable + rope, set at face height"},
     {id:"incline",name:"Smith Incline Press",type:"compound",sets:4,reps:"8–12",muscle:"Chest",equip:"Smith machine + bench (15 kg bar)"},
@@ -530,28 +530,29 @@ let DAYS={
     {id:"shoulder",name:"Smith Shoulder Press",type:"compound",sets:3,reps:"8–12",muscle:"Shoulders",equip:"Smith machine + bench (15 kg bar)"},
     {id:"chestfly",name:"Cable Chest Fly",type:"isolation",sets:3,reps:"12–15",muscle:"Chest",equip:"Cable machine — squeeze at centre"},
     {id:"ohtri",name:"Overhead Cable Tricep Extension",type:"isolation",sets:3,reps:"10–12",muscle:"Arms",equip:"Cable low + rope, face away, elbows high beside your ears"},
+    {id:"curl1",name:"Behind-the-Body Cable Curl",type:"isolation",sets:3,reps:"10–15",muscle:"Arms",equip:"Low pulley + single handle — face away, upper arm slightly behind torso"},
   ]},
-  day2:{label:"Day 2 · Lower A",short:"LOWER A",sub:"Quads · Glutes · Hamstrings · Core",dur:"~60 min",exercises:[
+  day2:{label:"Day 2 · Lower A",short:"LOWER A",sub:"Quads · Glutes · Hamstrings · Core",dur:"~70 min",exercises:[
     {id:"squat",name:"Barbell Back Squat",type:"compound",sets:4,reps:"5–8",muscle:"Legs",equip:"Rack + barbell (20 kg bar)"},
     {id:"crunch",name:"Cable Crunch",type:"isolation",sets:3,reps:"15–20",muscle:"Core",equip:"Cable + bar — kneel, crunch abs down"},
     {id:"rdl",name:"Romanian Deadlift",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Barbell (20 kg bar)"},
     {id:"calf4",name:"Smith Calf Raise",type:"isolation",sets:3,reps:"15–20",muscle:"Legs",equip:"Smith machine — second calf session of the week"},
-    {id:"zercher",name:"Zercher Squat + 20 m Carry",type:"compound",sets:3,reps:"8",muscle:"Legs",equip:"Bar in the crook of your elbows — squat, then walk 20 m carrying it"},
+    {id:"legext",name:"Cable Leg Extension",type:"isolation",sets:4,reps:"12–15 each",muscle:"Legs",equip:"Low pulley + ankle strap — extend one leg at a time, squeeze the quad"},
     {id:"farmers",name:"Farmer's Carry",type:"compound",sets:4,reps:"30 m each",muscle:"Grip",equip:"Barbell loaded — log kg carried",carry:true},
   ]},
-  day3:{label:"Day 3 · Pull",short:"PULL",sub:"Back · Traps · Biceps · Grip",dur:"~60 min",exercises:[
+  day3:{label:"Day 3 · Pull",short:"PULL",sub:"Back · Traps · Biceps · Grip",dur:"~70 min",exercises:[
     {id:"bbrow",name:"Barbell Bent-Over Row",type:"compound",sets:4,reps:"6–8",muscle:"Back",equip:"Barbell (20 kg bar)"},
-    {id:"curl",name:"Cable Bicep Curl",type:"isolation",sets:3,reps:"12–15",muscle:"Arms",equip:"Cable straight bar"},
-    {id:"shrug",name:"Barbell Shrug",type:"isolation",sets:4,reps:"10–15",muscle:"Back",equip:"Barbell — shrug straight up, 1 s hold"},
-    {id:"wrist",name:"Cable Wrist Curl",type:"finisher",sets:4,reps:"15–20",muscle:"Grip",equip:"Cable low, forearms on thighs — 2 sets underhand, then 2 overhand"},
     {id:"pullup",name:"Cable Lat Pulldown (Wide)",type:"compound",sets:4,reps:"8–12",muscle:"Back",equip:"Cable + wide bar — swap to pull-ups once you max the stack"},
     {id:"lmrow",name:"Landmine Single-Arm Row",type:"compound",sets:3,reps:"10–12 each",muscle:"Back",equip:"Landmine — brace core, pull elbow back"},
+    {id:"shrug",name:"Barbell Shrug",type:"isolation",sets:4,reps:"10–15",muscle:"Back",equip:"Barbell — shrug straight up, 1 s hold"},
+    {id:"curl",name:"Cable Bicep Curl",type:"isolation",sets:3,reps:"8–12",muscle:"Arms",equip:"Cable low + straight bar — elbows pinned, progress this one hard"},
+    {id:"wrist",name:"Cable Wrist Curl",type:"finisher",sets:4,reps:"15–20",muscle:"Grip",equip:"Cable low, forearms on thighs — 2 sets underhand, then 2 overhand"},
   ]},
-  day4:{label:"Day 4 · Lower B",short:"LOWER B",sub:"Posterior chain · Glutes · Core",dur:"~60 min",exercises:[
+  day4:{label:"Day 4 · Lower B",short:"LOWER B",sub:"Posterior chain · Glutes · Core",dur:"~70 min",exercises:[
     {id:"deadlift",name:"Barbell Deadlift",type:"compound",sets:4,reps:"4–6",muscle:"Legs",equip:"Rack + barbell (20 kg bar)"},
     {id:"hipthrust",name:"Smith Hip Thrust",type:"compound",sets:3,reps:"10–12",muscle:"Legs",equip:"Smith machine + bench — go heavy"},
     {id:"lmtwist",name:"Landmine Twist",type:"isolation",sets:3,reps:"12 each",muscle:"Core",equip:"Landmine — rotate side to side, straight arms"},
-    {id:"curl4",name:"Cable Bicep Curl",type:"isolation",sets:3,reps:"12–15",muscle:"Arms",equip:"Cable straight bar — second bicep session of the week"},
+    {id:"curl4",name:"Rope Hammer Cable Curl",type:"isolation",sets:3,reps:"10–15",muscle:"Arms",equip:"Low pulley + rope — neutral grip, thumbs up, elbows close"},
     {id:"pushdown",name:"Cable Tricep Pushdown",type:"isolation",sets:3,reps:"12–15",muscle:"Arms",equip:"Cable rope or bar — elbows pinned, push to full extension"},
     {id:"lateral4",name:"Cable Lateral Raise (1 arm)",type:"isolation",sets:3,reps:"15–20",muscle:"Arms",equip:"Cable low, single D-handle — second shoulder session of the week"},
     {id:"calf4",name:"Smith Calf Raise",type:"isolation",sets:4,reps:"15–20",muscle:"Legs",equip:"Smith machine (15 kg bar)"},
@@ -562,7 +563,7 @@ let DAYS={
 const SUPERSETS={
   day1:[["bench","facepull"],["incline","lateral"],["shoulder","chestfly"]],
   day2:[["squat","crunch"],["rdl","calf4"]],
-  day3:[["bbrow","curl"],["shrug","wrist"]],
+  day3:[["shrug","curl"]],
   day4:[["deadlift","hipthrust"],["calf4","lmtwist"],["curl4","pushdown","lateral4"]]
 };
 const TIPS={
@@ -572,10 +573,11 @@ const TIPS={
   facepull:"Cable at face height. Pull rope to face, elbows high and wide. Squeeze rear delts.",
   lateral:"Stand side-on to cable. Raise to shoulder height, lead with the elbow. Slow descent.",
   ohtri:"Face away from a low cable, rope overhead, elbows high and close to your ears. Extend to straight arms above your head, then let the rope stretch behind your neck. Only the forearms move — this is the one angle that loads the triceps long head.",
+  curl1:"Face away from the low pulley and let the upper arm sit slightly behind your torso. Curl without letting the elbow drift forward. Control the stretch and squeeze hard at the top.",
   chestfly:"Arms slightly bent throughout. Bring hands together at chest height. Squeeze at peak.",
   hang:"Full grip, straight arms. Shoulders engaged, not shrugged. Hold as long as possible.",
   squat:"Bar on upper traps. Chest up, knees over toes. Hit parallel or below. Drive through heels.",
-  zercher:"Bar in the crook of your elbows, hugged tight to your chest. Squat with an upright torso, then stand and walk 20 m still holding it. Expect roughly half your back squat — elbows and upper back give out long before your legs. Pad the bar or wear a hoodie.",
+  legext:"Attach an ankle strap to the low pulley. Brace yourself, keep the thigh still, extend the knee until the quad is fully shortened, squeeze, then lower under control. Do all reps on one side, then swap.",
   rdl:"Slight knee bend, push hips back. Bar close to legs. Feel the hamstring stretch, drive hips forward.",
   pullthr:"Face away from cable, rope between legs. Hinge forward, drive hips through to stand tall.",
   farmers:"Heavy load, neutral grip. Walk tall, tight core, shoulders back. 30 m per set.",
@@ -594,7 +596,7 @@ const TIPS={
   hipthrust:"Upper back on bench, bar on hips. Drive hips to full lockout, squeeze glutes hard.",
   calf4:"Balls of feet on a plate. Full stretch at the bottom, pause at the top.",
   lmtwist:"Face the plate, arms straight. Rotate side to side from the core, not the arms.",
-  curl4:"Same movement as Pull day but your biceps are fresh. Cable low, curl to the top, squeeze, lower slowly. No swinging.",
+  curl4:"Use a rope with a neutral grip, thumbs pointing up. Keep elbows close, curl without swinging, and squeeze hard at the top. This adds more brachialis and forearm work for arm thickness.",
   pushdown:"Cable high, rope or bar. Elbows pinned at your sides — they stay there. Push to full extension and squeeze at the bottom.",
   lateral4:"Same as Push day. Cable low, D-handle, raise to shoulder height, control the return. Do all reps on one side then swap.",
   hollow:"Lower back glued to floor. Legs at 45°, arms overhead. Log the seconds."
@@ -614,7 +616,7 @@ const DEFAULT_DAYS=JSON.parse(JSON.stringify(DAYS)),DEFAULT_ORDER=DAY_ORDER.slic
 /* ---------- STORE ---------- */
 const KEY="forge-v1";
 let DB=load();
-function blank(){return{prefs:{goalWeight:85,kcalTarget:2200,proteinTarget:200,stepGoal:5000,sound:true,age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,autoRest:false},sessions:{},weight:[],steps:{},macros:{},prs:[]}}
+function blank(){return{prefs:{goalWeight:90,kcalTarget:1876,proteinTarget:180,stepGoal:5000,sound:true,age:33,height:177,sex:"m",autoSteps:3000,autoKcal:1876,autoProt:180,autoCarb:0,autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,autoRest:false},sessions:{},weight:[],steps:{},macros:{},prs:[]}}
 function load(){try{const d=JSON.parse(localStorage.getItem(KEY));if(d&&d.prefs)return Object.assign(blank(),d)}catch(e){}return blank()}
 let saveT=null;
 let DB_REV=0;
@@ -694,7 +696,17 @@ const OPERATOR_LINES=[
   "The frame is built in private. The standard shows in public.",
   "Prepare beyond what the easy day requires.",
   "The body follows the standard you refuse to lower.",
-  "Being honourable is having every excuse to fall, yet you stand."
+  "Being honourable is having every excuse to fall, yet you stand.",
+  "Be the strength someone else gets to rely on.",
+  "Train now so you can be useful when it matters.",
+  "Strength is wasted if it serves only you.",
+  "Build yourself into the person others can depend on.",
+  "Get stronger so fear has less say in the room.",
+  "Train for the day someone else needs your calm.",
+  "Your strength becomes purpose when it protects.",
+  "Become harder to break, so others don’t have to be.",
+  "Carry yourself well enough to carry someone else.",
+  "Build the strength to step forward when others can’t."
 ];
 function operatorCalendarDay(){
   const d=new Date(today()+"T12:00:00");
@@ -733,9 +745,11 @@ function operatorState(){
   const nextSessions=next?operatorSessionsForPct(next.p):null;
   return{n,pct,label:cur.l,next,nextSessions,left:nextSessions==null?0:Math.max(0,nextSessions-n)};
 }
-function awardOperatorWorkout(sess,sets){
+function awardOperatorWorkout(sess,sets,totalSets){
   ensureOperatorTracker();
-  if(!sets||sess._operatorAwarded)return null;
+  if(sess._operatorAwarded)return{already:true};
+  const need=Math.max(1,Math.ceil((+totalSets||0)*.75));
+  if(sets<need)return{incomplete:true,sets,need};
   const before=operatorState().pct;
   sess._operatorAwarded=true;DB.operatorTracker.workouts=(+DB.operatorTracker.workouts||0)+1;save();
   const st=operatorState();
@@ -782,22 +796,31 @@ function go(name){
   $("scr-"+name).scrollTop=0;
 }
 /* ---------- HOME ---------- */
-/* The week resets every Monday: whatever you missed last week stays missed.
-   Suggests the first day of the split you haven't trained THIS week, so a
-   skipped session never pushes the rotation into the following week. */
+/* Weekly stats still run Monday–Sunday, but workout selection is a continuous
+   rotation. Office days or missed days simply pause the sequence. */
 function trainedThisWeek(dayId){
   const wk=weekDates();
   return wk.some(d=>{const s=getSess(dayId,d);
     return s&&Object.keys(s).some(k=>!k.startsWith("_")&&(s[k]||[]).some(setDone))});
 }
-function suggestedDay(){
-  const todo=DAY_ORDER.filter(d=>!trainedThisWeek(d));
-  if(todo.length)return todo[0];            // first one still outstanding
-  return DAY_ORDER[0];                      // all four done — start again
+function completedSessionRows(){
+  const out=[];
+  DAY_ORDER.forEach(dayId=>sessDates(dayId).forEach(date=>{
+    const s=getSess(dayId,date);if(!s)return;
+    const sets=(DAYS[dayId].exercises||[]).reduce((n,ex)=>n+(s[ex.id]||[]).filter(setDone).length,0);
+    if(sets&&(s._finishTs||date<today()))out.push({dayId,date,finish:+s._finishTs||0,sets});
+  }));
+  return out.sort((a,b)=>a.date===b.date?(a.finish-b.finish):(a.date<b.date?-1:1));
 }
-function weekProgress(){
-  const done=DAY_ORDER.filter(trainedThisWeek);
-  return{done:done.length,total:DAY_ORDER.length,list:DAY_ORDER.map(d=>({id:d,done:trainedThisWeek(d)}))};
+function suggestedDay(){
+  const done=completedSessionRows();
+  if(!done.length)return DAY_ORDER[0];
+  const last=done[done.length-1],i=DAY_ORDER.indexOf(last.dayId);
+  return DAY_ORDER[(i<0?0:i+1)%DAY_ORDER.length];
+}
+function rotationProgress(){
+  const next=suggestedDay(),i=DAY_ORDER.indexOf(next);
+  return{next,index:i,list:DAY_ORDER.map((d,n)=>({id:d,next:n===i}))};
 }
 function openSuggested(){openWorkout(suggestedDay())}
 function dstr(x){return`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,"0")}-${String(x.getDate()).padStart(2,"0")}`}
@@ -840,8 +863,8 @@ function renderHome(){
     return`<div class="wday${ds===today()?" today":""}" style="${future?"opacity:.4":""}"><div class="wday-lbl">${names[dt.getDay()]}</div><div class="wday-dot${trainedOn(ds)?" hit":""}"></div></div>`}).join("");
   // hero next
   const sug=suggestedDay(),day=DAYS[sug];const last=sessDates(sug);
-  $("hero-next").innerHTML=`<div class="hero-kicker">Up next</div><div class="hero-title">${day.short.split(" ")[0]} <em>${day.short.split(" ")[1]||""}</em></div><div class="subtle">${day.sub}</div><div class="row mt12" style="gap:7px;flex-wrap:wrap"><span class="pill hi">${day.dur}</span><span class="pill">${day.exercises.length} exercises</span>${(()=>{const p=weekProgress();return`<span class="pill">${p.done}/${p.total} done this week</span>`})()}</div>
-    <div class="row mt12" style="gap:5px;flex-wrap:wrap">${weekProgress().list.map(x=>`<span class="pill" style="${x.done?"border-color:var(--pos);color:var(--pos)":""}">${x.done?"✓ ":""}${esc(DAYS[x.id].short)}</span>`).join("")}</div><button class="btn btn-volt btn-full mt16" onclick="event.stopPropagation();openWorkout('${sug}')">Start session →</button>`;
+  $("hero-next").innerHTML=`<div class="hero-kicker">Up next · continuous rotation</div><div class="hero-title">${day.short.split(" ")[0]} <em>${day.short.split(" ")[1]||""}</em></div><div class="subtle">${day.sub}</div><div class="row mt12" style="gap:7px;flex-wrap:wrap"><span class="pill hi">${day.dur}</span><span class="pill">${day.exercises.length} exercises</span><span class="pill">rest days pause the rotation</span></div>
+    <div class="row mt12" style="gap:5px;flex-wrap:wrap">${rotationProgress().list.map(x=>`<span class="pill" style="${x.next?"border-color:var(--volt-line);color:var(--volt)":""}">${x.next?"→ ":""}${esc(DAYS[x.id].short)}</span>`).join("")}</div><button class="btn btn-volt btn-full mt16" onclick="event.stopPropagation();openWorkout('${sug}')">Start session →</button>`;
   // tiles
   const wl=DB.weight;
   if(wl.length){
@@ -961,10 +984,9 @@ function attachBigDrag(){
 /* ---------- TRAIN: day list ---------- */
 function renderDayList(){
   $("day-list").innerHTML=DAY_ORDER.map(id=>{
-    const d=DAYS[id],ds=sessDates(id);
-    const doneWk=trainedThisWeek(id);
+    const d=DAYS[id],ds=sessDates(id),isNext=id===suggestedDay();
     const lastTxt=ds.length?`Last trained ${daysAgo(ds[ds.length-1])===0?"today":daysAgo(ds[ds.length-1])+"d ago"} · ${ds.length} sessions`:"Never trained — fresh start";
-    return`<div class="day-card" onclick="openWorkout('${id}')" style="${doneWk?"border-color:#1e4a30":""}"><div><div class="day-kicker">${esc(d.label)}${doneWk?' <span style="color:var(--pos)">✓ done this week</span>':""}</div><div class="day-name">${d.short}</div><div class="day-meta">${d.sub}</div><div class="day-last">${lastTxt}</div></div><div class="day-arrow">›</div></div>`;
+    return`<div class="day-card" onclick="openWorkout('${id}')" style="${isNext?"border-color:var(--volt-line)":""}"><div><div class="day-kicker">${esc(d.label)}${isNext?' <span style="color:var(--volt)">→ up next</span>':""}</div><div class="day-name">${d.short}</div><div class="day-meta">${d.sub}</div><div class="day-last">${lastTxt}</div></div><div class="day-arrow">›</div></div>`;
   }).join("");
 }
 
@@ -995,7 +1017,10 @@ function ssInfo(dayId,exId){const p=SUPERSETS[dayId]||[];for(const pair of p){if
 function buildWorkout(){
   const dayId=WO.dayId,sess=getSess(dayId,WO.date)||{};
   const lastDate=lastSessionBefore(dayId,WO.date);
-  let h="";
+  let h=`<div class="grp" style="margin-top:14px"><div class="warm-card" style="margin:0">
+    <div class="spread" style="gap:12px"><div style="min-width:0"><div class="warm-title">Conditioning warm-up</div>
+    <div class="warm-desc"><b style="color:var(--text)">10 min strider</b> · easy-to-moderate pace before lifting. This is logged separately from your working sets.</div></div>
+    <button class="btn ${sess._strider?"btn-volt":""}" id="strider-btn" onclick="toggleStrider()">${sess._strider?"✓ Done":"Mark done"}</button></div></div></div>`;
   // Render in program order — the list IS the running order, so supersets read
   // top to bottom. Rest guidance moves onto each card instead of grouping.
   (DAYS[dayId].exercises||[]).forEach(ex=>{
@@ -1010,7 +1035,7 @@ function buildWorkout(){
       let rows="";
       for(let i=0;i<ex.sets;i++){
         const s=cur[i]||{};
-        const ph=prevBest?{w:prevBest.w||"",r:prevBest.r||""}:{w:rec?rec.w:"",r:rec?rec.r:""};
+        const ph=rec?{w:rec.w||"",r:rec.r||""}:prevBest?{w:prevBest.w||"",r:prevBest.r||""}:{w:"",r:""};
         rows+=`<div class="set-row"><div class="set-n${s.done?" on":""}" id="n-${ex.id}-${i}">${i+1}</div>
           <input class="inp${s.w?" logged":""}" id="w-${ex.id}-${i}" type="number" inputmode="decimal" step="0.5" placeholder="${ph.w}" value="${s.w||""}" oninput="setVal('${ex.id}',${i},'w',this.value)">
           <input class="inp${s.r?" logged":""}" id="r-${ex.id}-${i}" type="number" inputmode="numeric" placeholder="${ph.r}" value="${s.r||""}" oninput="setVal('${ex.id}',${i},'r',this.value)">
@@ -1044,6 +1069,11 @@ function buildWorkout(){
   });
   $("wo-body").innerHTML=h;
   updateProgressBar();
+}
+
+function toggleStrider(){
+  const sess=ensureSess(WO.dayId,WO.date);sess._strider=!sess._strider;save();haptic(12);
+  const b=$("strider-btn");if(b){b.classList.toggle("btn-volt",!!sess._strider);b.textContent=sess._strider?"✓ Done":"Mark done"}
 }
 function toggleEx(exId){$("body-"+exId).classList.toggle("open")}
 function setVal(exId,i,k,v){
@@ -1093,30 +1123,40 @@ function updateProgressBar(){
   DAYS[WO.dayId].exercises.forEach(ex=>{total+=ex.sets;done+=((sess[ex.id]||[]).filter(s=>s&&s.done)).length});
   $("wo-prog-fill").style.width=(total?Math.round(done/total*100):0)+"%";
 }
-/* Progression recommendation (double progression) */
-function lastRPE(exId){
-  for(const d of DAY_ORDER){
-    const dates=sessDates(d).filter(x=>x<today());
-    if(!DAYS[d].exercises.some(e=>e.id===exId))continue;
-    for(let i=dates.length-1;i>=0;i--){const r=avgRPE((getSess(d,dates[i])||{})[exId]);if(r)return r}
-  }
-  return null;
+/* Progression recommendation (double progression).
+   Load only rises once every prescribed working set reaches the top of the
+   rep range with acceptable effort. Until then, keep the load and build reps. */
+function lastExerciseWork(exId){
+  const cutoff=(WO&&WO.date)||today(),out=[];
+  DAY_ORDER.forEach(dayId=>{
+    const dex=(DAYS[dayId].exercises||[]).find(e=>e.id===exId);if(!dex)return;
+    sessDates(dayId).filter(d=>d<cutoff).forEach(date=>{
+      const sets=((getSess(dayId,date)||{})[exId]||[]).filter(setDone);
+      if(sets.length)out.push({dayId,date,sets,expected:dex.sets,rpe:avgRPE(sets)});
+    });
+  });
+  return out.sort((a,b)=>a.date<b.date?-1:1).pop()||null;
 }
+function lastRPE(exId){const w=lastExerciseWork(exId);return w?w.rpe:null}
 function recommend(ex,hist){
   if(!hist.length)return null;
-  const last=hist[hist.length-1];
-  const rpe=lastRPE(ex.id);
-  if(rpe&&rpe>=9.5&&!ex.timed)
-    return{w:last.w,r:last.r,note:`Last time was RPE ${rpe} — repeat ${last.w} kg × ${last.r} before adding load`};
+  const last=hist[hist.length-1],work=lastExerciseWork(ex.id),rpe=work?work.rpe:null;
   if(ex.timed){const next=Math.min(Math.round(last.r*1.1),ex.id==="plank"?90:120);return{w:"",r:next,note:`Held ${last.r}s last time — aim ${next}s (+10%)`}}
   if(ex.carry)return{w:last.w?last.w+2.5:20,r:30,note:last.w?`Carried ${last.w} kg — try ${last.w+2.5} kg`:null};
   const range=ex.reps.match(/(\d+)\s*–\s*(\d+)/);
-  const lo=range?+range[1]:+(ex.reps.match(/\d+/)||[8])[0], hi=range?+range[2]:lo;
+  const lo=range?+range[1]:+(ex.reps.match(/\d+/)||[8])[0],hi=range?+range[2]:lo;
   const inc=ex.type==="compound"?(last.w<60?5:2.5):1.25;
-  if(rpe&&rpe<=7&&last.w){const big=+(last.w+inc*2).toFixed(1);
-    return{w:big,r:lo,note:`Only RPE ${rpe} last time — jump to ${String(big).replace(/\.0$/,"")} kg`}}
-  if(last.r>=hi)return{w:+(last.w+inc).toFixed(1),r:lo,note:`Hit ${last.r}×${last.w} kg — load ${(last.w+inc).toFixed(1).replace(/\.0$/,"")} kg, drop to ${lo} reps`};
-  return{w:last.w,r:Math.min(last.r+1,hi),note:`Beat last time: ${last.w} kg × ${Math.min(last.r+1,hi)}`};
+  if(!work||!work.sets.length)return{w:last.w,r:Math.min(last.r+1,hi),note:`Beat last time: ${last.w} kg × ${Math.min(last.r+1,hi)}`};
+  const reps=work.sets.map(x=>+x.r||0),weights=work.sets.map(x=>+x.w||0).filter(Boolean);
+  const baseW=weights.length?(+work.sets[0].w||Math.min(...weights)):last.w;
+  const full=work.sets.length>=work.expected,allTop=full&&reps.every(r=>r>=hi);
+  const sameLoad=!weights.length||work.sets.every(x=>!x.w||+x.w>=baseW);
+  const summary=reps.join("/");
+  if(rpe&&rpe>=9.5)return{w:baseW,r:Math.max(lo,Math.min(...reps)),note:`Last session averaged RPE ${rpe} — hold ${baseW} kg and clean up the reps before adding load`};
+  if(allTop&&sameLoad&&(!rpe||rpe<=9)){const next=+(baseW+inc).toFixed(1);return{w:next,r:lo,note:`All ${work.expected} sets hit ${hi}+ reps${rpe?` at RPE ${rpe}`:""} — move to ${String(next).replace(/\.0$/,"")} kg`}}
+  const weak=Math.max(lo,Math.min(...reps.filter(Boolean)));
+  const target=Math.min(weak+1,hi);
+  return{w:baseW,r:target,note:`Keep ${baseW} kg · last sets ${summary} · build every set to ${hi} before adding weight`};
 }
 /* PR detection */
 function checkPR(exId,s){
@@ -1200,14 +1240,18 @@ function finishWorkout(){
   Object.keys(sess).forEach(k=>{if(k.startsWith("_")||findEx(k))return;
     (sess[k]||[]).forEach(x=>{if(setDone(x))retired++})});
   if((getSess(WO.dayId,WO.date)||{})._start)toggleClock();
-  const operator=awardOperatorWorkout(sess,sets),operatorNow=operatorState();
+  const totalSets=(DAYS[WO.dayId].exercises||[]).reduce((n,ex)=>n+ex.sets,0);
+  if(!WO.editing)sess._finishTs=Date.now();
+  const operator=WO.editing?{editing:true}:awardOperatorWorkout(sess,sets,totalSets),operatorNow=operatorState();
+  save();
   openSheet(`<div class="sheet-title">Session complete 💪</div>
     <div class="kpi3"><div class="kpi"><div class="kpi-l">Sets done</div><div class="kpi-v">${sets}</div></div>
     <div class="kpi"><div class="kpi-l">Tonnage</div><div class="kpi-v">${Math.round(ton).toLocaleString()}<small> kg</small></div></div>
     <div class="kpi"><div class="kpi-l">Avg RPE</div><div class="kpi-v">${sessionRPE(WO.dayId,WO.date)||"—"}</div></div>
-    <div class="kpi"><div class="kpi-l">Duration</div><div class="kpi-v">${sess._dur||"—"}<small>${sess._dur?" min":""}</small></div></div></div>
+    <div class="kpi"><div class="kpi-l">Duration</div><div class="kpi-v">${sess._dur||"—"}<small>${sess._dur?" min":""}</small></div></div>
+    <div class="kpi"><div class="kpi-l">Strider</div><div class="kpi-v">${sess._strider?"✓":"—"}<small>${sess._strider?" 10 min":""}</small></div></div></div>
     ${retired?`<div class="tiny mb12" style="color:var(--sky)">Plus ${retired} sets logged against exercises no longer in your program — still saved, visible in Session history.</div>`:""}
-    ${operator?`<div class="operator-card mb12" style="padding:13px"><div class="spread"><div><div class="chart-kick">Strength Progress</div><div style="font-size:15px;font-weight:700">${operatorNow.pct.toFixed(1)}% · ${esc(operatorNow.label)}</div></div><div class="mono" style="font-size:13px;color:var(--pos)">+${operator.delta.toFixed(2)}%</div></div><div class="operator-bar"><div class="operator-fill" style="width:${operatorNow.pct}%"></div></div></div>`:`<div class="tiny mb12">Strength Progress already counted for this session.</div>`}
+    ${operator&&operator.incomplete?`<div class="warm-card mb12" style="margin-left:0;margin-right:0"><div class="warm-title">Strength Progress not counted yet</div><div class="warm-desc">Complete at least ${operator.need} of ${totalSets} programmed sets (75%) for this session to earn a progress bump. You logged ${operator.sets}.</div></div>`:operator&&operator.editing?`<div class="tiny mb12">Past-session edits do not change Strength Progress.</div>`:operator&&operator.already?`<div class="tiny mb12">Strength Progress already counted for this session.</div>`:operator?`<div class="operator-card mb12" style="padding:13px"><div class="spread"><div><div class="chart-kick">Strength Progress</div><div style="font-size:15px;font-weight:700">${operatorNow.pct.toFixed(1)}% · ${esc(operatorNow.label)}</div></div><div class="mono" style="font-size:13px;color:var(--pos)">+${operator.delta.toFixed(2)}%</div></div><div class="operator-bar"><div class="operator-fill" style="width:${operatorNow.pct}%"></div></div></div>`:""}
     <div class="subtle mb12">Every set is saved. Next session, the app will tell you exactly what to beat.</div>
     <button class="btn btn-volt btn-full" onclick="closeSheet();go('home')">Done</button>`);
 }
@@ -1374,10 +1418,10 @@ ohtri:{alt:"overhead tricep extension",scene:SC.towerL,hi:"arm",imp:"grip",cable
  A:[112,50, 112,70, 108,44, 128,60, 110,104, 108,130, 108,150], B:[112,50, 112,70, 108,44, 104,18, 110,104, 108,130, 108,150],
  labels:[[140,20,"lock out overhead","v"],[146,64,"stretch behind the head"],[62,58,"elbows high and","c"],[62,68,"close to the ears","c"]],
  note:"Face away from a low cable · elbows stay put, only the forearms move"},
-zercher:{alt:"Zercher squat and carry",scene:SC.floor,hi:"leg",imp:"grip",dur:3.2,
- A:[112,44, 112,64, 96,80, 112,84, 110,98, 108,126, 108,150], B:[104,74, 106,92, 90,108, 106,112, 118,128, 94,128, 108,150],
- labels:[[132,80,"bar in the elbow crook","v"],[132,130,"chest tall, torso upright","c"],[52,146,"then walk 20 m"]],
- note:"Squat with the bar hugged to your chest, stand, then carry it 20 m"},
+legext:{alt:"cable leg extension",scene:SC.towerL,hi:"leg",imp:"grip",cable:[36,138],dur:2.4,
+ A:[112,48, 112,68, 100,80, 112,84, 112,104, 108,128, 96,148], B:[112,48, 112,68, 100,80, 112,84, 112,104, 108,128, 154,132],
+ labels:[[160,128,"extend the knee","v"],[154,148,"squeeze the quad"],[70,90,"thigh stays still","c"]],
+ note:"Low pulley + ankle strap · extend one leg at a time and lower under control"},
 deadlift:{alt:"deadlift",scene:SC.floor,hi:"leg",imp:"bar",guide:[118,100,118,140],dur:3,
  A:[104,72, 112,88, 118,112, 118,138, 126,116, 106,130, 112,150], B:[116,44, 116,62, 118,84, 118,104, 114,96, 112,124, 112,150],
  labels:[[138,140,"bar over midfoot"],[136,110,"flat back","c"],[136,62,"stand tall","v"]],
@@ -1404,6 +1448,14 @@ hollow:{alt:"hollow body hold",scene:SC.floor,hi:"core",dur:3.6,
  labels:[[110,100,"low back glued down","v"],[186,118,"legs ~45°","c",1]],
  note:"Ribs down, low back pressed to the floor · log the seconds"}
 };
+D.curl1={alt:"behind-the-body cable curl",scene:SC.towerL,hi:"arm",imp:"grip",cable:[36,144],dur:2.4,
+ A:[118,44,118,62,104,88,88,108,116,98,112,124,112,150], B:[118,44,118,62,96,82,108,62,116,98,112,124,112,150],
+ labels:[[140,62,"curl without drifting forward","v"],[60,94,"upper arm behind torso","c"]],
+ note:"Face away from the low pulley · keep the upper arm slightly behind the body and control the stretch"};
+D.curl4={alt:"rope hammer cable curl",scene:SC.tower,hi:"arm",imp:"grip",cable:[214,144],dur:2.4,
+ A:[104,44,104,62,108,86,112,108,102,96,100,124,100,150], B:[104,44,104,62,108,86,96,70,102,96,100,124,100,150],
+ labels:[[130,66,"thumbs up","v"],[132,92,"elbows close"]],
+ note:"Neutral grip on the rope · curl without swinging, squeeze hard, lower under control"};
 const DEMOS={};Object.keys(D).forEach(k=>{Object.defineProperty(DEMOS,k,{get:()=>D[k].custom?D[k].custom():buildDemo(D[k]),enumerable:true})});
 function tipSheet(exId){const ex=findEx(exId);openSheet(`<div class="sheet-title">${esc(ex.name)}</div>${DEMOS[exId]?`<div class="mb12">${DEMOS[exId]}</div>`:""}<div class="subtle" style="line-height:1.7;font-size:13.5px">${TIPS[exId]||ex.equip}</div><div class="tiny mt12">${ex.equip}</div><button class="btn btn-full mt16" onclick="closeSheet()">Got it</button>`)}
 function warmupSheet(exId){
@@ -1766,9 +1818,82 @@ function v2migrate(){
     (DB.program.days[d].exercises||[]).forEach(e=>{
       if(e.id==="wrist"&&e.sets===3){e.sets=4;
         e.equip="Cable low, forearms on thighs — 2 sets underhand (flexors), then 2 sets overhand (extensors)"}})})}}catch(e){}
-  DB.prefs=Object.assign({age:33,height:177,sex:"m",autoSteps:3000,autoKcal:2200,autoProt:200,autoCarb:0,
-    autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,autoRest:false,goalWeight:85,kcalTarget:2200,
-    proteinTarget:200,stepGoal:5000,sound:true},DB.prefs);
+  // one-off: add the Day 1 bicep finisher without overwriting any other program edits
+  try{
+    if(!DB.day1CurlMigrated){
+      const d1=DB.program&&DB.program.days&&DB.program.days.day1;
+      if(d1&&Array.isArray(d1.exercises)&&!d1.exercises.some(e=>e.id==="curl1")){
+        const ex={id:"curl1",name:"Behind-the-Body Cable Curl",type:"isolation",sets:3,reps:"10–15",muscle:"Arms",equip:"Low pulley + single handle — face away, upper arm slightly behind torso"};
+        const i=d1.exercises.findIndex(e=>e.id==="ohtri");
+        d1.exercises.splice(i>=0?i+1:d1.exercises.length,0,ex);
+      }
+      DB.day1CurlMigrated=1;
+      save();
+    }
+  }catch(e){}
+  // one-off: optimise the three biceps slots without overwriting the rest of the saved program
+  try{
+    if(!DB.bicepsVarMigrated){
+      const days=DB.program&&DB.program.days;
+      if(days){
+        const c1=(days.day1&&days.day1.exercises||[]).find(e=>e.id==="curl1");
+        if(c1){c1.name="Behind-the-Body Cable Curl";c1.sets=3;c1.reps="10–15";c1.equip="Low pulley + single handle — face away, upper arm slightly behind torso";}
+        const c3=(days.day3&&days.day3.exercises||[]).find(e=>e.id==="curl");
+        if(c3){c3.name="Cable Bicep Curl";c3.sets=3;c3.reps="8–12";c3.equip="Cable low + straight bar — elbows pinned, progress this one hard";}
+        const c4=(days.day4&&days.day4.exercises||[]).find(e=>e.id==="curl4");
+        if(c4){c4.name="Rope Hammer Cable Curl";c4.sets=3;c4.reps="10–15";c4.equip="Low pulley + rope — neutral grip, thumbs up, elbows close";}
+      }
+      DB.bicepsVarMigrated=1;
+      save();
+    }
+  }catch(e){}
+  // one-off: reorder Pull so all back compounds happen before direct biceps/grip work
+  try{
+    if(!DB.pullOrderMigrated){
+      const d3=DB.program&&DB.program.days&&DB.program.days.day3;
+      if(d3&&Array.isArray(d3.exercises)){
+        const order=["bbrow","pullup","lmrow","shrug","curl","wrist"],byId=Object.fromEntries(d3.exercises.map(e=>[e.id,e]));
+        const used=new Set(order.filter(id=>byId[id]));
+        d3.exercises=order.filter(id=>byId[id]).map(id=>byId[id]).concat(d3.exercises.filter(e=>!used.has(e.id)));
+      }
+      DB.pullOrderMigrated=1;save();
+    }
+  }catch(e){}
+  // one-off: move cable leg extensions to four working sets
+  try{
+    if(!DB.legExtFourMigrated){
+      const e=DB.program&&DB.program.days&&DB.program.days.day2&&(DB.program.days.day2.exercises||[]).find(x=>x.id==="legext");
+      if(e&&e.sets===3)e.sets=4;
+      DB.legExtFourMigrated=1;save();
+    }
+  }catch(e){}
+  // one-off: current cut targets requested for this build
+  try{
+    if(!DB.cutTargetsMigrated){
+      DB.prefs=DB.prefs||{};DB.prefs.goalWeight=90;DB.prefs.kcalTarget=1876;DB.prefs.proteinTarget=180;
+      DB.prefs.autoKcal=1876;DB.prefs.autoProt=180;DB.cutTargetsMigrated=1;save();
+    }
+  }catch(e){}
+  // one-off: replace Zercher squat + carry with cable leg extensions on Lower A
+  try{
+    if(!DB.legExtMigrated){
+      const d2=DB.program&&DB.program.days&&DB.program.days.day2;
+      if(d2&&Array.isArray(d2.exercises)){
+        const i=d2.exercises.findIndex(e=>e.id==="zercher");
+        const ex={id:"legext",name:"Cable Leg Extension",type:"isolation",sets:4,reps:"12–15 each",muscle:"Legs",equip:"Low pulley + ankle strap — extend one leg at a time, squeeze the quad"};
+        if(i>=0)d2.exercises.splice(i,1,ex);
+        else if(!d2.exercises.some(e=>e.id==="legext")){
+          const fi=d2.exercises.findIndex(e=>e.id==="farmers");
+          d2.exercises.splice(fi>=0?fi:d2.exercises.length,0,ex);
+        }
+      }
+      DB.legExtMigrated=1;
+      save();
+    }
+  }catch(e){}
+  DB.prefs=Object.assign({age:33,height:177,sex:"m",autoSteps:3000,autoKcal:1876,autoProt:180,autoCarb:0,
+    autoFat:0,trainBurn:380,stepKcal:0.04,restC:150,restI:75,restF:60,autoRest:false,goalWeight:90,kcalTarget:1876,
+    proteinTarget:180,stepGoal:5000,sound:true},DB.prefs);
   DB.foods=DB.foods||[];
   if(!DB.foods.length&&SEED_FOODS.length)DB.foods=SEED_FOODS.map((f,i)=>Object.assign({id:"f"+i},f));
   DB.auto=DB.auto||{s:{},m:{}};
@@ -1834,8 +1959,8 @@ function energyBalance(date){
 /* ══════════ MUSCLE MAP ══════════ */
 const EX_REGIONS={
 bench:["chest","tri","delt"],incline:["chest","delt","tri"],shoulder:["delt","tri"],
-facepull:["reardelt","upback"],pushdown:["tri"],lateral:["delt"],chestfly:["chest"],
-hang:["fore"],hang3:["fore"],squat:["quad","glute","abs"],lunge:["quad","glute"],
+facepull:["reardelt","upback"],pushdown:["tri"],lateral:["delt"],chestfly:["chest"],curl1:["bi"],
+hang:["fore"],hang3:["fore"],squat:["quad","glute","abs"],legext:["quad"],lunge:["quad","glute"],
 rdl:["ham","glute","lowback"],pullthr:["glute","ham"],farmers:["fore","trap","abs"],
 crunch:["abs"],plank:["abs"],pullup:["lat","bi"],bbrow:["lat","upback","bi"],
 srow:["upback","lat","bi"],lmrow:["lat","upback"],curl:["bi"],shrug:["trap","fore"],
@@ -1855,7 +1980,8 @@ lowback:"Lower back",glute:"Glutes",quad:"Quads",ham:"Hamstrings",calf:"Calves"}
    made them look harder-trained than four dedicated shrug sets.          */
 const EX_MUSCLES={
 pushdown:{p:["tri_lat","tri_med"],s:["tri_long"]},
-curl4:{p:["bi_short","bi_long","brach"],s:[]},
+curl4:{p:["brach","bi_long","bi_short"],s:["fore_flex"]},
+curl1:{p:["bi_long","bi_short"],s:["brach"]},
 lateral4:{p:["delt_side"],s:["trap_up"]},
 bench:{p:["chest"],s:["delt_front","tri_lat","tri_med"]},
 incline:{p:["chest"],s:["delt_front","tri_lat","tri_med"]},
@@ -1865,7 +1991,7 @@ ohtri:{p:["tri_long","tri_med"],s:["tri_lat"]},
 lateral:{p:["delt_side"],s:[]},
 chestfly:{p:["chest"],s:["delt_front"]},
 squat:{p:["quad","glute"],s:["abs","lowback"]},
-zercher:{p:["quad","upback","abs"],s:["glute","bi_long","fore_flex","trap_up"]},
+legext:{p:["quad"],s:[]},
 rdl:{p:["ham","glute"],s:["lowback"]},
 farmers:{p:["fore_flex","fore_ext"],s:["trap_up","abs"]},
 crunch:{p:["abs"],s:[]},hollow:{p:["abs"],s:[]},
@@ -2874,20 +3000,38 @@ function weekStats(off){
 function delta(a,b){return b?Math.round((a-b)/b*100):(a?100:0)}
 function arrow(n){return n>0?`<span style="color:var(--pos)">▲ ${n}%</span>`:n<0?`<span style="color:var(--neg)">▼ ${Math.abs(n)}%</span>`:`<span style="color:var(--dim)">no change</span>`}
 
-/* how many sessions since this lift last set an all-time best */
+/* Lift trend + fatigue. A lack of PR alone is not a deload trigger — especially
+   during a cut. Fatigue requires both high recent effort and falling performance. */
+function exerciseSessionTrend(exId){
+  const out=[];
+  DAY_ORDER.forEach(dayId=>{
+    if(!(DAYS[dayId].exercises||[]).some(e=>e.id===exId))return;
+    sessDates(dayId).forEach(date=>{
+      const sets=((getSess(dayId,date)||{})[exId]||[]).filter(setDone);if(!sets.length)return;
+      const b=bestSet(dayId,date,exId);if(!b)return;
+      out.push({date,w:b.w,r:b.r,e:e1rm(b.w,b.r),rpe:avgRPE(sets)});
+    });
+  });
+  return out.sort((a,b)=>a.date<b.date?-1:1);
+}
 function sessionsSincePR(exId){
-  const h=exHistory(exId);if(h.length<2)return null;
+  const h=exerciseSessionTrend(exId);if(h.length<2)return null;
   let best=-1,bi=0;h.forEach((x,i)=>{if(x.e>best){best=x.e;bi=i}});
   return{since:h.length-1-bi,best,total:h.length,last:h[h.length-1]};
 }
 function stallReport(){
   const out=[];
   DAY_ORDER.forEach(d=>(DAYS[d].exercises||[]).forEach(ex=>{
-    if(ex.timed)return;
-    const r=sessionsSincePR(ex.id);
-    if(r&&r.total>=3&&r.since>=3)out.push({ex,...r});
+    if(ex.timed||out.some(x=>x.ex.id===ex.id))return;
+    const h=exerciseSessionTrend(ex.id),r=sessionsSincePR(ex.id);if(!r||h.length<3)return;
+    const recent=h.slice(-3),rated=recent.filter(x=>x.rpe!=null);
+    const highEffort=rated.filter(x=>x.rpe>=8.8).length>=2;
+    const first=recent[0].e||0,last=recent[recent.length-1].e||0;
+    const falling=first>0&&last<=first*.98;
+    const fatigue=highEffort&&falling;
+    if(r.since>=3||fatigue)out.push({ex,...r,fatigue,recentRPE:rated.length?Math.round(rated.reduce((a,b)=>a+b.rpe,0)/rated.length*10)/10:null,drop:first?Math.round((last-first)/first*1000)/10:0});
   }));
-  return out.sort((a,b)=>b.since-a.since);
+  return out.sort((a,b)=>(+b.fatigue-+a.fatigue)||(b.since-a.since));
 }
 function balanceReport(){
   const c=regionSets(),out={under:[],over:[],ok:[]};
@@ -2958,16 +3102,16 @@ function renderStalls(){
   if(!st.length)return`<div class="card mb12"><div class="row" style="gap:10px"><div style="font-size:20px">✓</div>
     <div><div style="font-size:13px;font-weight:600;color:var(--pos)">Nothing stalled</div>
     <div class="tiny mt8">Every lift has hit a best within its last three sessions.</div></div></div></div>`;
-  const deload=st.filter(s=>s.since>=4).length>=2;
+  const fatigued=st.filter(s=>s.fatigue),deload=fatigued.length>=2;
   return`<div class="card mb12">
     ${deload?`<div class="warm-card" style="margin:0 0 12px;background:#2a1508;border-color:#4a2a10;border-left-color:var(--ember)">
       <div class="warm-title" style="color:var(--ember)">Consider a deload week</div>
-      <div class="warm-desc">${st.filter(s=>s.since>=4).length} lifts haven't set a best in four or more sessions. That's the classic sign of accumulated fatigue rather than lack of effort. Try one week at roughly 60% of your usual weights and sets, then come back and push.</div></div>`:""}
+      <div class="warm-desc">${fatigued.length} lifts show the same pattern: performance drifting down while recent RPE stays high. That is a stronger fatigue signal than simply not setting a PR. Consider one easier week, then reassess.</div></div>`:""}
     ${st.slice(0,6).map(s=>`<div class="hist-row" style="padding:9px 0;border-color:#1a1d26">
       <div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:500">${esc(s.ex.name)}</div>
-      <div class="tiny">${s.since} sessions since your ${s.best} kg best · last ${s.last.w}×${s.last.r}</div></div>
-      <div class="hist-val" style="color:${s.since>=4?"var(--ember)":"var(--muted)"}">${s.since}</div></div>`).join("")}
-    <div class="tiny mt12">Stalling isn't failure — it usually means fatigue, sleep or calories, not effort. On a cut, holding a lift steady is a win.</div></div>`;
+      <div class="tiny">${s.since} sessions since best · last ${s.last.w}×${s.last.r}${s.recentRPE?` · recent RPE ${s.recentRPE}`:""}${s.fatigue?` · performance ${s.drop}% over 3 sessions`:""}</div></div>
+      <div class="hist-val" style="color:${s.fatigue?"var(--ember)":"var(--muted)"}">${s.fatigue?"FATIGUE":s.since}</div></div>`).join("")}
+    <div class="tiny mt12">No PR is not automatically a problem. On a cut, holding strength steady is a win; the warning only escalates when high RPE and falling performance appear together.</div></div>`;
 }
 function renderPRTimeline(){
   const prs=[...DB.prs].sort((a,b)=>a.date<b.date?1:-1);
@@ -2985,12 +3129,12 @@ function renderPRTimeline(){
 
 function homeAlert(){
   const el=$("home-alert");if(!el)return;
-  const st=stallReport().filter(s=>s.since>=4),b=balanceReport();
+  const st=stallReport().filter(s=>s.fatigue),b=balanceReport();
   let h="";
   if(st.length>=2)h=`<div class="card" style="border-color:#4a2a10;background:#1c1108" onclick="go('progress')">
     <div class="row" style="gap:10px"><div style="font-size:19px">⚠️</div><div style="flex:1;min-width:0">
-    <div style="font-size:13px;font-weight:600;color:var(--ember)">${st.length} lifts have stalled</div>
-    <div class="tiny mt8">Four or more sessions without a best. A deload week may be due — tap for detail.</div></div></div></div>`;
+    <div style="font-size:13px;font-weight:600;color:var(--ember)">${st.length} lifts show fatigue</div>
+    <div class="tiny mt8">High recent RPE plus falling performance. An easier week may be due — tap for detail.</div></div></div></div>`;
   else if(b.under.length){const u=b.under[0];
     h=`<div class="card" onclick="go('progress')"><div class="row" style="gap:10px"><div style="font-size:19px">🎯</div>
     <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--sky)">${u.name} is light this week</div>
@@ -3089,7 +3233,7 @@ function allSessions(){
       sets+=done.length;
       exes.push({ex:{id:k,name:RETIRED_NAMES[k]||k,retired:true},sets:s[k]});
     });
-    if(sets)out.push({dayId,date,sets,ton:Math.round(ton),exes,dur:s._dur,rpe:sessionRPE(dayId,date),notes:s._notes||{}});
+    if(sets)out.push({dayId,date,sets,ton:Math.round(ton),exes,dur:s._dur,strider:!!s._strider,rpe:sessionRPE(dayId,date),notes:s._notes||{}});
   }));
   return out.sort((a,b)=>a.date<b.date?1:-1);
 }
@@ -3134,7 +3278,7 @@ function renderHistory(){
           <div style="flex:1;min-width:0;cursor:pointer" onclick="toggleHist('${s.dayId}','${s.date}')">
             <div class="day-kicker">${d.toLocaleDateString(undefined,{weekday:"long"})}</div>
             <div style="font-size:15px;font-weight:700">${fmtDate(s.date)}${s.date===today()?" · Today":""}</div>
-            <div class="tiny mt8">${s.sets} sets · ${s.ton.toLocaleString()} kg${s.dur?" · "+s.dur+" min":""}${s.rpe?` · avg RPE <b style="color:${rpeColor(s.rpe)}">${s.rpe}</b>`:""}</div>
+            <div class="tiny mt8">${s.sets} sets · ${s.ton.toLocaleString()} kg${s.dur?" · "+s.dur+" min":""}${s.strider?" · strider ✓":""}${s.rpe?` · avg RPE <b style="color:${rpeColor(s.rpe)}">${s.rpe}</b>`:""}</div>
           </div>
           <div class="row" style="gap:6px;flex:0 0 auto">
             <button class="tool-btn" style="padding:8px 12px" onclick="editSession('${s.dayId}','${s.date}')">✎ Edit</button>
@@ -3222,8 +3366,8 @@ pushdown:{w:30,r:12},
 curl4:{w:20,r:12},
 lateral4:{w:10,r:15},
 bench:{w:90,r:8},incline:{w:60,r:8},shoulder:{w:45,r:8},facepull:{w:50,r:15},
-ohtri:{w:50,r:12},lateral:{w:24,r:15},chestfly:{w:36,r:12},
-squat:{w:125,r:8},zercher:{w:85,r:8},rdl:{w:100,r:10},farmers:{w:100,r:30},
+ohtri:{w:50,r:12},curl1:{w:60,r:12},lateral:{w:24,r:15},chestfly:{w:36,r:12},
+squat:{w:125,r:8},legext:{w:30,r:15},rdl:{w:100,r:10},farmers:{w:100,r:30},
 crunch:{w:80,r:15},
 pullup:{w:100,r:10},bbrow:{w:80,r:8},lmrow:{w:50,r:10},curl:{w:60,r:12},
 shrug:{w:120,r:12},wrist:{w:50,r:15},
